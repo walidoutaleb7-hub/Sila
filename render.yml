@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: sila-server
+    runtime: node
+    rootDir: sila/server
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
