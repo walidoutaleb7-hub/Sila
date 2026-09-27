@@ -1,1 +1,49 @@
- 
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// جدول الأقسام
+model Class {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(50)
+  level     String    @db.VarChar(20)
+  createdAt DateTime  @default(now())
+
+  students  Student[]
+
+  @@map("classes")
+}
+
+// جدول التلاميذ
+model Student {
+  id         Int      @id @default(autoincrement())
+  fullName   String   @db.VarChar(200)
+  classId    Int
+  createdAt  DateTime @default(now())
+
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+
+  @@index([classId])
+  @@map("students")
+}
+
+// جدول الحضور
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  date      DateTime @db.Date
+  status    String   @db.VarChar(20) // PRESENT أو ABSENT
+  createdAt DateTime @default(now())
+
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+  @@index([date])
+  @@map("attendance")
+} 
