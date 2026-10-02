@@ -3,12 +3,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/font_controller.dart';
+import 'theme/preferences_controller.dart';
 import 'theme/theme_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await themeController.init();
   await fontController.init();
+  await preferencesController.init();
   runApp(const SilaApp());
 }
 
@@ -18,7 +20,11 @@ class SilaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([themeController, fontController]),
+      animation: Listenable.merge([
+        themeController,
+        fontController,
+        preferencesController,
+      ]),
       builder: (context, _) {
         return MaterialApp(
           title: 'SILA',
@@ -39,9 +45,16 @@ class SilaApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           builder: (context, child) {
+            // ✅ تطبيق حجم الخط
+            final scale = preferencesController.fontScale;
             return Directionality(
               textDirection: TextDirection.rtl,
-              child: child!,
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(scale),
+                ),
+                child: child!,
+              ),
             );
           },
           home: const SplashScreen(),
