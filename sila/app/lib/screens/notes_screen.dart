@@ -13,7 +13,7 @@ class NotesScreen extends StatefulWidget {
 class _NotesScreenState extends State<NotesScreen> {
   late Future<List<NoteItem>> _notesFuture;
   List<Student> _students = [];
-  String _filterType = 'ALL'; // ALL, POSITIVE, NEGATIVE, INFO, JOURNAL
+  String _filterType = 'ALL';
 
   @override
   void initState() {
@@ -41,7 +41,8 @@ class _NotesScreenState extends State<NotesScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
-        Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white),
+        Icon(isError ? Icons.error_outline : Icons.check_circle,
+            color: Colors.white),
         const SizedBox(width: 8),
         Expanded(child: Text(message)),
       ]),
@@ -68,17 +69,21 @@ class _NotesScreenState extends State<NotesScreen> {
         builder: (context, setDialogState) {
           final colors = context.colors;
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22)),
             titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             title: Row(children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF1B3A1E) : const Color(0xFFE8F5E9),
+                  color: context.isDark
+                      ? const Color(0xFF1B3A1E)
+                      : const Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.note_add_outlined, color: Color(0xFF4CAF50), size: 22),
+                child: const Icon(Icons.note_add_outlined,
+                    color: Color(0xFF4CAF50), size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -94,61 +99,38 @@ class _NotesScreenState extends State<NotesScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // نوع الملاحظة
                   _dialogLabel('النوع', Icons.category_outlined),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      _typeChip('JOURNAL', 'مذكرة حصة', Icons.menu_book_outlined),
-                      _typeChip('POSITIVE', 'إيجابي', Icons.star_outline),
-                      _typeChip('NEGATIVE', 'سلبي', Icons.warning_amber_outlined),
-                      _typeChip('INFO', 'معلومة', Icons.info_outline),
-                    ].map((chip) {
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap: () => setDialogState(() {
-                          selectedType = chip.key;
-                          if (selectedType == 'JOURNAL') selectedStudentId = null;
-                        }),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: selectedType == chip.key
-                                ? _typeColor(chip.key).shade600
-                                : (context.isDark
-                                    ? _typeColor(chip.key).shade900.withOpacity(0.3)
-                                    : _typeColor(chip.key).shade50),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: selectedType == chip.key
-                                  ? _typeColor(chip.key).shade600
-                                  : colors.cardBorder,
-                            ),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(chip.value,
-                                size: 14,
-                                color: selectedType == chip.key
-                                    ? Colors.white
-                                    : _typeColor(chip.key).shade400),
-                            const SizedBox(width: 5),
-                            Text(chip.label,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: selectedType == chip.key
-                                        ? Colors.white
-                                        : _typeColor(chip.key).shade400)),
-                          ]),
-                        ),
-                      );
-                    }).toList(),
+                      _typeChip(context, setDialogState, selectedType,
+                          'JOURNAL', 'مذكرة حصة', Icons.menu_book_outlined,
+                          (t) {
+                        setDialogState(() {
+                          selectedType = t;
+                          if (selectedType == 'JOURNAL') {
+                            selectedStudentId = null;
+                          }
+                        });
+                      }),
+                      _typeChip(context, setDialogState, selectedType,
+                          'POSITIVE', 'إيجابي', Icons.star_outline, (t) {
+                        setDialogState(() => selectedType = t);
+                      }),
+                      _typeChip(context, setDialogState, selectedType,
+                          'NEGATIVE', 'سلبي', Icons.warning_amber_outlined,
+                          (t) {
+                        setDialogState(() => selectedType = t);
+                      }),
+                      _typeChip(context, setDialogState, selectedType, 'INFO',
+                          'معلومة', Icons.info_outline, (t) {
+                        setDialogState(() => selectedType = t);
+                      }),
+                    ],
                   ),
 
-                  // اختيار التلميذ (إن لم يكن مذكرة حصة)
                   if (selectedType != 'JOURNAL') ...[
                     const SizedBox(height: 16),
                     _dialogLabel('التلميذ', Icons.person_outline),
@@ -176,19 +158,20 @@ class _NotesScreenState extends State<NotesScreen> {
                                   child: Text(s.fullName),
                                 ))
                             .toList(),
-                        onChanged: (v) => setDialogState(() => selectedStudentId = v),
+                        onChanged: (v) =>
+                            setDialogState(() => selectedStudentId = v),
                       ),
                     ),
                   ],
 
-                  // العنوان
                   const SizedBox(height: 16),
                   _dialogLabel('العنوان', Icons.title_outlined),
                   const SizedBox(height: 8),
                   TextField(
                     controller: titleController,
                     maxLength: 200,
-                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    style:
+                        TextStyle(color: colors.textPrimary, fontSize: 14),
                     decoration: _inputDecoration(
                       context,
                       hint: selectedType == 'JOURNAL'
@@ -197,7 +180,6 @@ class _NotesScreenState extends State<NotesScreen> {
                     ),
                   ),
 
-                  // المحتوى
                   const SizedBox(height: 4),
                   _dialogLabel('المحتوى', Icons.notes_outlined),
                   const SizedBox(height: 8),
@@ -205,7 +187,8 @@ class _NotesScreenState extends State<NotesScreen> {
                     controller: contentController,
                     maxLines: 5,
                     maxLength: 2000,
-                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    style:
+                        TextStyle(color: colors.textPrimary, fontSize: 14),
                     decoration: _inputDecoration(
                       context,
                       hint: selectedType == 'JOURNAL'
@@ -214,7 +197,6 @@ class _NotesScreenState extends State<NotesScreen> {
                     ),
                   ),
 
-                  // التاريخ
                   const SizedBox(height: 4),
                   InkWell(
                     borderRadius: BorderRadius.circular(12),
@@ -224,18 +206,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         initialDate: selectedDate,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
-                        locale: const Locale('ar'),
-                        builder: (context, child) => Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: ColorScheme.light(
-                              primary: Colors.green.shade700,
-                              onPrimary: Colors.white,
-                              onSurface:
-                                  context.isDark ? Colors.white : Colors.black,
-                            ),
-                          ),
-                          child: child!,
-                        ),
+                        locale: const Locale('ar', 'DZ'),
                       );
                       if (picked != null) {
                         setDialogState(() => selectedDate = picked);
@@ -271,20 +242,17 @@ class _NotesScreenState extends State<NotesScreen> {
                 onPressed: () => Navigator.pop(context, null),
                 style: TextButton.styleFrom(
                   foregroundColor: colors.textSecondary,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
                 ),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
                 onPressed: () {
                   if (titleController.text.trim().isEmpty ||
-                      contentController.text.trim().isEmpty) {
-                    return;
-                  }
-                  if (selectedType != 'JOURNAL' && selectedStudentId == null) {
-                    return;
-                  }
+                      contentController.text.trim().isEmpty) return;
+                  if (selectedType != 'JOURNAL' &&
+                      selectedStudentId == null) return;
                   Navigator.pop(context, {
                     'type': selectedType,
                     'title': titleController.text.trim(),
@@ -300,8 +268,8 @@ class _NotesScreenState extends State<NotesScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade600,
                   foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -331,12 +299,60 @@ class _NotesScreenState extends State<NotesScreen> {
     }
   }
 
+  // ✅ الدالة التي كانت مفقودة
+  Widget _typeChip(
+    BuildContext context,
+    StateSetter setDialogState,
+    String currentType,
+    String type,
+    String label,
+    IconData icon,
+    Function(String) onSelect,
+  ) {
+    final colors = context.colors;
+    final selected = currentType == type;
+    final color = _typeColor(type);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => onSelect(type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected
+              ? color.shade600
+              : (context.isDark
+                  ? color.shade900.withOpacity(0.3)
+                  : color.shade50),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? color.shade600 : colors.cardBorder,
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon,
+              size: 14,
+              color: selected ? Colors.white : color.shade400),
+          const SizedBox(width: 5),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: selected ? Colors.white : color.shade400)),
+        ]),
+      ),
+    );
+  }
+
   Widget _dialogLabel(String label, IconData icon) {
     final colors = context.colors;
     return Row(children: [
       Icon(icon,
           size: 14,
-          color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
+          color: context.isDark
+              ? const Color(0xFF81C784)
+              : Colors.green.shade600),
       const SizedBox(width: 6),
       Text(label,
           style: TextStyle(
@@ -346,14 +362,16 @@ class _NotesScreenState extends State<NotesScreen> {
     ]);
   }
 
-  InputDecoration _inputDecoration(BuildContext context, {required String hint}) {
+  InputDecoration _inputDecoration(BuildContext context,
+      {required String hint}) {
     final colors = context.colors;
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
       filled: true,
       fillColor: colors.inputFill,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none),
@@ -370,15 +388,13 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════
-  // حذف ملاحظة
-  // ═══════════════════════════════════════════
   Future<void> _confirmDelete(NoteItem note) async {
     final colors = context.colors;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         title: Row(children: [
           Container(
             padding: const EdgeInsets.all(10),
@@ -404,7 +420,8 @@ class _NotesScreenState extends State<NotesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            style: TextButton.styleFrom(foregroundColor: colors.textSecondary),
+            style:
+                TextButton.styleFrom(foregroundColor: colors.textSecondary),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
@@ -527,14 +544,19 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Widget _buildFilterRow(List<NoteItem> allNotes) {
     final colors = context.colors;
-    int countOf(String type) =>
-        type == 'ALL' ? allNotes.length : allNotes.where((n) => n.type == type).length;
+    int countOf(String type) => type == 'ALL'
+        ? allNotes.length
+        : allNotes.where((n) => n.type == type).length;
 
     final filters = [
       {'key': 'ALL', 'label': 'الكل', 'icon': Icons.apps},
       {'key': 'JOURNAL', 'label': 'مذكرات', 'icon': Icons.menu_book_outlined},
       {'key': 'POSITIVE', 'label': 'إيجابي', 'icon': Icons.star_outline},
-      {'key': 'NEGATIVE', 'label': 'سلبي', 'icon': Icons.warning_amber_outlined},
+      {
+        'key': 'NEGATIVE',
+        'label': 'سلبي',
+        'icon': Icons.warning_amber_outlined
+      },
       {'key': 'INFO', 'label': 'معلومات', 'icon': Icons.info_outline},
     ];
 
@@ -621,8 +643,12 @@ class _NotesScreenState extends State<NotesScreen> {
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [
-                context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50,
-                context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade100,
+                context.isDark
+                    ? const Color(0xFF1B3A1E)
+                    : Colors.green.shade50,
+                context.isDark
+                    ? const Color(0xFF1B3A1E)
+                    : Colors.green.shade100,
               ]),
               shape: BoxShape.circle,
             ),
@@ -673,7 +699,8 @@ class _NotesScreenState extends State<NotesScreen> {
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Container(
                 padding: const EdgeInsets.all(8),
@@ -732,9 +759,7 @@ class _NotesScreenState extends State<NotesScreen> {
             const SizedBox(height: 10),
             Text(note.content,
                 style: TextStyle(
-                    fontSize: 13,
-                    height: 1.5,
-                    color: colors.textSecondary)),
+                    fontSize: 13, height: 1.5, color: colors.textSecondary)),
           ]),
         ),
       ),
