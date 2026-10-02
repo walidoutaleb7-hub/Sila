@@ -284,6 +284,27 @@ class StudentGrades {
 }
 
 // ═══════════════════════════════════════════
+// نموذج التقرير الشامل
+// ═══════════════════════════════════════════
+class StudentFullReport {
+  final Student student;
+  final int attendanceTotal;
+  final int attendancePresent;
+  final int attendanceAbsent;
+  final int attendanceRate;
+  final double? gradesAverage;
+
+  StudentFullReport({
+    required this.student,
+    required this.attendanceTotal,
+    required this.attendancePresent,
+    required this.attendanceAbsent,
+    required this.attendanceRate,
+    required this.gradesAverage,
+  });
+}
+
+// ═══════════════════════════════════════════
 // خدمة الاتصال
 // ═══════════════════════════════════════════
 class ApiService {
@@ -377,6 +398,44 @@ class ApiService {
     throw Exception('فشل جلب الإحصائيات');
   }
 
+  /// تجميع تقرير شامل للقسم (للتصدير)
+  static Future<List<StudentFullReport>> getFullClassReport(int classId) async {
+    final students = await getStudents(classId);
+    final result = <StudentFullReport>[];
+
+    for (final student in students) {
+      try {
+        final history = await getStudentHistory(student.id);
+        double? average;
+        try {
+          final grades = await getStudentGrades(student.id);
+          average = grades.count > 0 ? grades.average : null;
+        } catch (_) {
+          average = null;
+        }
+        result.add(StudentFullReport(
+          student: student,
+          attendanceTotal: history.total,
+          attendancePresent: history.present,
+          attendanceAbsent: history.absent,
+          attendanceRate: history.rate,
+          gradesAverage: average,
+        ));
+      } catch (_) {
+        result.add(StudentFullReport(
+          student: student,
+          attendanceTotal: 0,
+          attendancePresent: 0,
+          attendanceAbsent: 0,
+          attendanceRate: 0,
+          gradesAverage: null,
+        ));
+      }
+    }
+
+    return result;
+  }
+
   // ───────── الحضور ─────────
   static Future<int> saveAttendance({
     required int classId, required DateTime date, required Map<int, String> records,
@@ -410,7 +469,6 @@ class ApiService {
   }
 
   // ───────── الدرجات ─────────
-  /// حفظ دفعة درجات
   static Future<int> saveGrades({
     required int classId,
     required String assessment,
@@ -442,7 +500,6 @@ class ApiService {
     throw Exception('فشل حفظ الدرجات');
   }
 
-  /// جلب جلسات درجات القسم
   static Future<List<GradeSession>> getClassGrades(int classId) async {
     final response = await http.get(Uri.parse('$_baseUrl/api/classes/$classId/grades')).timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
@@ -454,7 +511,6 @@ class ApiService {
     throw Exception('فشل جلب الدرجات');
   }
 
-  /// جلب درجات تلميذ
   static Future<StudentGrades> getStudentGrades(int studentId) async {
     final response = await http.get(Uri.parse('$_baseUrl/api/students/$studentId/grades')).timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
