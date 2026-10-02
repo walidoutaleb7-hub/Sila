@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/api.dart';
 import '../theme/app_theme.dart';
+import 'messaging_screen.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final Student student;
@@ -38,6 +39,15 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
       _gradesFuture = ApiService.getStudentGrades(widget.student.id);
       _notesFuture = ApiService.getStudentNotes(widget.student.id);
     });
+  }
+
+  void _goToMessaging() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MessagingScreen(student: widget.student),
+      ),
+    );
   }
 
   @override
@@ -134,6 +144,38 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
           pinned: true,
           backgroundColor: colors.headerGradientMid,
           foregroundColor: Colors.white,
+          actions: [
+            // 📩 زر المراسلة
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Material(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: _goToMessaging,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.message_outlined, size: 18),
+                        SizedBox(width: 6),
+                        Text(
+                          'مراسلة',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             titlePadding: const EdgeInsets.only(left: 56, right: 16, bottom: 60),
             title: Text(history.student.fullName,
@@ -197,7 +239,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // ─── صورة + اسم التلميذ ───
         _buildStudentHero(),
         const SizedBox(height: 16),
         Row(children: [
@@ -225,6 +266,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     final colors = context.colors;
     final hasPhoto = widget.student.photoUrl != null &&
         widget.student.photoUrl!.trim().isNotEmpty;
+    final hasGuardianPhone =
+        widget.student.guardianPhone?.trim().isNotEmpty ?? false;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -233,39 +276,84 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.cardBorder, width: 1),
       ),
-      child: Row(children: [
-        // الصورة
-        Container(
-          width: 70, height: 70,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: colors.cardBorder, width: 2),
+      child: Column(children: [
+        Row(children: [
+          Container(
+            width: 70, height: 70,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colors.cardBorder, width: 2),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: hasPhoto
+                  ? Image.memory(
+                      base64Decode(widget.student.photoUrl!),
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) => _initialsAvatar(70),
+                    )
+                  : _initialsAvatar(70),
+            ),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: hasPhoto
-                ? Image.memory(
-                    base64Decode(widget.student.photoUrl!),
-                    fit: BoxFit.cover,
-                    gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) => _initialsAvatar(70),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.student.fullName,
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      color: colors.textPrimary)),
+              const SizedBox(height: 4),
+              Text('رقم التلميذ: ${widget.student.id}',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 14),
+        Divider(color: colors.divider),
+        const SizedBox(height: 10),
+        // معلومات الولي
+        Row(children: [
+          Icon(Icons.family_restroom,
+              size: 16, color: colors.textTertiary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.student.guardianName != null &&
+                    widget.student.guardianName!.trim().isNotEmpty)
+                  Text(
+                    widget.student.guardianName!,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: colors.textPrimary),
                   )
-                : _initialsAvatar(70),
+                else
+                  Text('لم يُسجَّل اسم الولي',
+                      style: TextStyle(
+                          fontSize: 12, color: colors.textTertiary)),
+                const SizedBox(height: 2),
+                if (hasGuardianPhone)
+                  Text(
+                    widget.student.guardianPhone!,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade700,
+                        fontWeight: FontWeight.w600),
+                  )
+                else
+                  Text('لا يوجد رقم هاتف',
+                      style: TextStyle(
+                          fontSize: 11, color: colors.textTertiary)),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.student.fullName,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                    color: colors.textPrimary)),
-            const SizedBox(height: 4),
-            Text('رقم التلميذ: ${widget.student.id}',
-                style: TextStyle(color: colors.textTertiary, fontSize: 12)),
-          ]),
-        ),
+        ]),
       ]),
     );
   }
