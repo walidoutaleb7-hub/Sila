@@ -4,7 +4,13 @@ import '../theme/app_theme.dart';
 
 class GradesEntryScreen extends StatefulWidget {
   final SchoolClass schoolClass;
-  const GradesEntryScreen({super.key, required this.schoolClass});
+  final GradeSession? editSession; // null = إضافة، غير null = تعديل
+
+  const GradesEntryScreen({
+    super.key,
+    required this.schoolClass,
+    this.editSession,
+  });
 
   @override
   State<GradesEntryScreen> createState() => _GradesEntryScreenState();
@@ -31,10 +37,21 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
   bool _saving = false;
   String? _error;
 
+  bool get _isEditMode => widget.editSession != null;
+
   @override
   void initState() {
     super.initState();
-    _loadStudents();
+    // إذا كنا في وضع التعديل، املأ القيم من الجلسة
+    if (_isEditMode) {
+      final s = widget.editSession!;
+      _selectedAssessment = s.assessment;
+      _selectedDate = s.date;
+      _maxScore = s.maxScore;
+      _coeff = s.coeff;
+      _noteController.text = s.note ?? '';
+    }
+    _loadData();
   }
 
   @override
@@ -46,7 +63,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
     super.dispose();
   }
 
-  Future<void> _loadStudents() async {
+  Future<void> _loadData() async {
     setState(() {
       _loading = true;
       _error = null;
@@ -56,6 +73,24 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
       for (final s in students) {
         _scoreControllers[s.id] = TextEditingController();
       }
+
+      // إذا كنا في وضع التعديل، املأ النقاط الحالية
+      if (_isEditMode) {
+        try {
+          final session = await ApiService.getSessionGrades(
+            classId: widget.schoolClass.id,
+            assessment: widget.editSession!.assessment,
+            date: widget.editSession!.date,
+          );
+          for (final r in session.records) {
+            _scoreControllers[r.studentId]?.text =
+                r.score.toStringAsFixed(r.score % 1 == 0 ? 0 : 2);
+          }
+        } catch (_) {
+          // تجاهل — القائمة فارغة
+        }
+      }
+
       setState(() {
         _students = students;
         _loading = false;
@@ -90,7 +125,6 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
   }
 
   Future<void> _save() async {
-    // جمع النقاط
     final records = <int, double>{};
     for (final s in _students) {
       final text = _scoreControllers[s.id]?.text.trim() ?? '';
@@ -118,7 +152,10 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         records: records,
       );
       if (!mounted) return;
-      _showSnack('تم حفظ $saved نقطة بنجاح', isError: false);
+      _showSnack(
+        _isEditMode ? 'تم تحديث $saved نقطة' : 'تم حفظ $saved نقطة بنجاح',
+        isError: false,
+      );
       Navigator.pop(context, true);
     } catch (e) {
       _showSnack('فشل الحفظ: $e', isError: true);
@@ -147,7 +184,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('إدخال الدرجات'),
+        title: Text(_isEditMode ? 'تعديل التقييم' : 'إدخال الدرجات'),
         centerTitle: true,
         backgroundColor: colors.headerGradientMid,
         foregroundColor: Colors.white,
@@ -186,7 +223,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
           Text('خطأ: $_error', textAlign: TextAlign.center, style: TextStyle(color: colors.textPrimary)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: _loadStudents,
+            onPressed: _loadData,
             icon: const Icon(Icons.refresh),
             label: const Text('إعادة المحاولة'),
             style: ElevatedButton.styleFrom(
@@ -206,8 +243,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
           Icon(Icons.group_off, size: 72, color: colors.textTertiary),
           const SizedBox(height: 16),
           Text('لا يوجد تلاميذ',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
           const SizedBox(height: 8),
           Text('أضف تلاميذاً أولاً',
               style: TextStyle(color: colors.textSecondary, fontSize: 13)),
@@ -221,26 +257,18 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // ─── إعدادات التقييم ───
         _buildSettingsCard(),
         const SizedBox(height: 20),
-
-        // ─── العنوان ───
         Row(children: [
           Container(
             width: 4, height: 20,
-            decoration: BoxDecoration(
-                color: Colors.green.shade700,
-                borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(color: Colors.green.shade700, borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(width: 10),
           Text('النقاط (${_students.length} تلميذ)',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
         ]),
         const SizedBox(height: 12),
-
-        // ─── قائمة التلاميذ ───
         ..._students.asMap().entries.map((entry) => _buildStudentRow(entry.value, entry.key)),
         const SizedBox(height: 40),
       ],
@@ -257,7 +285,6 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         border: Border.all(color: colors.cardBorder, width: 1),
       ),
       child: Column(children: [
-        // ─── نوع التقييم ───
         _buildFieldLabel('نوع التقييم', Icons.assignment_outlined),
         const SizedBox(height: 8),
         Wrap(
@@ -266,7 +293,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
             final selected = _selectedAssessment == t;
             return InkWell(
               borderRadius: BorderRadius.circular(10),
-              onTap: () => setState(() => _selectedAssessment = t),
+              onTap: _isEditMode ? null : () => setState(() => _selectedAssessment = t),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -296,10 +323,9 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         Divider(color: colors.divider),
         const SizedBox(height: 14),
 
-        // ─── التاريخ ───
         InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: _pickDate,
+          onTap: _isEditMode ? null : _pickDate,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(children: [
@@ -307,13 +333,13 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
                   size: 18, color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
               const SizedBox(width: 10),
               Text('التاريخ',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 13, color: colors.textPrimary)),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: colors.textPrimary)),
               const Spacer(),
               Text(ApiService.formatDateArabic(_selectedDate),
                   style: TextStyle(color: colors.textSecondary, fontSize: 12)),
               const SizedBox(width: 6),
-              Icon(Icons.arrow_forward_ios, size: 12, color: colors.textTertiary),
+              if (!_isEditMode)
+                Icon(Icons.arrow_forward_ios, size: 12, color: colors.textTertiary),
             ]),
           ),
         ),
@@ -321,7 +347,6 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         Divider(color: colors.divider),
         const SizedBox(height: 8),
 
-        // ─── السقف والمعامل ───
         Row(children: [
           Expanded(child: _buildNumberField('السقف', _maxScore, (v) => setState(() => _maxScore = v))),
           const SizedBox(width: 12),
@@ -333,8 +358,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
                     color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
                 const SizedBox(width: 6),
                 Text('المعامل',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
               ]),
               const SizedBox(height: 6),
               Container(
@@ -352,9 +376,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
                     child: Center(
                       child: Text('$_coeff',
                           style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: colors.textPrimary)),
+                              fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
                     ),
                   ),
                   _buildStepBtn(Icons.add, () {
@@ -369,7 +391,6 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         Divider(color: colors.divider),
         const SizedBox(height: 8),
 
-        // ─── ملاحظة ───
         TextField(
           controller: _noteController,
           maxLines: 2,
@@ -382,16 +403,13 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
             filled: true,
             fillColor: colors.inputFill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: colors.cardBorder)),
+                borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.cardBorder)),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                    color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300,
-                    width: 1.5)),
+                    color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300, width: 1.5)),
           ),
         ),
       ]),
@@ -415,12 +433,9 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Icon(Icons.straighten_outlined,
-            size: 16,
-            color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
+            size: 16, color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
         const SizedBox(width: 6),
-        Text(label,
-            style: TextStyle(
-                fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
+        Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
       ]),
       const SizedBox(height: 6),
       Container(
@@ -434,21 +449,18 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
           InkWell(
             onTap: value > 5 ? () => onChange(value - 5) : null,
             child: Icon(Icons.remove_circle_outline,
-                size: 20,
-                color: value > 5 ? colors.textSecondary : colors.textTertiary),
+                size: 20, color: value > 5 ? colors.textSecondary : colors.textTertiary),
           ),
           Expanded(
             child: Center(
               child: Text('${value.toInt()}',
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
             ),
           ),
           InkWell(
             onTap: value < 100 ? () => onChange(value + 5) : null,
             child: Icon(Icons.add_circle_outline,
-                size: 20,
-                color: value < 100 ? colors.textSecondary : colors.textTertiary),
+                size: 20, color: value < 100 ? colors.textSecondary : colors.textTertiary),
           ),
         ]),
       ),
@@ -458,13 +470,9 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
   Widget _buildFieldLabel(String label, IconData icon) {
     final colors = context.colors;
     return Row(children: [
-      Icon(icon,
-          size: 16,
-          color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
+      Icon(icon, size: 16, color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
       const SizedBox(width: 6),
-      Text(label,
-          style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
+      Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
     ]);
   }
 
@@ -488,7 +496,6 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(children: [
-            // الترتيب
             Container(
               width: 36, height: 36,
               decoration: BoxDecoration(
@@ -504,41 +511,30 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
               ),
             ),
             const SizedBox(width: 12),
-
-            // الاسم
             Expanded(
               child: Text(student.fullName,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary)),
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary)),
             ),
-
-            // خانة النقطة
             SizedBox(
               width: 70,
               child: TextField(
                 controller: _scoreControllers[student.id],
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 15, color: colors.textPrimary),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: colors.textPrimary),
                 decoration: InputDecoration(
                   hintText: '/${_maxScore.toInt()}',
-                  hintStyle: TextStyle(
-                      color: colors.textTertiary, fontSize: 13, fontWeight: FontWeight.normal),
+                  hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13, fontWeight: FontWeight.normal),
                   filled: true,
                   fillColor: colors.inputFill,
                   contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                   enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: colors.cardBorder)),
+                      borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: colors.cardBorder)),
                   focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(
-                          color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300,
-                          width: 1.5)),
+                          color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300, width: 1.5)),
                 ),
               ),
             ),
@@ -567,12 +563,14 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         child: ElevatedButton.icon(
           onPressed: _saving ? null : _save,
           icon: _saving
-              ? const SizedBox(
-                  width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.save, size: 20),
-          label: Text(_saving ? 'جاري الحفظ...' : 'حفظ الدرجات',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : Icon(_isEditMode ? Icons.save_as : Icons.save, size: 20),
+          label: Text(
+            _saving
+                ? (_isEditMode ? 'جاري التحديث...' : 'جاري الحفظ...')
+                : (_isEditMode ? 'تحديث الدرجات' : 'حفظ الدرجات'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green.shade700,
             foregroundColor: Colors.white,
