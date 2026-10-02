@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/api.dart';
 import '../services/export_service.dart';
+import '../shared/widgets/student_avatar.dart';
 import '../theme/app_theme.dart';
 import 'attendance.dart';
 import 'grades_list.dart';
@@ -159,58 +162,446 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   // ═══════════════════════════════════════════
-  // إضافة/تعديل/حذف تلميذ
+  // إضافة تلميذ
   // ═══════════════════════════════════════════
   Future<void> _showAddStudentDialog() async {
     final nameController = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    String? photoBase64;
+
+    final result = await showDialog<Map<String, dynamic>?>(
       context: context,
-      builder: (context) => _buildDialog(
-        title: 'إضافة تلميذ',
-        icon: Icons.person_add_alt_1_outlined,
-        nameController: nameController,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final colors = context.colors;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            title: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF1B3A1E) : const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.person_add_alt_1_outlined,
+                    color: Color(0xFF4CAF50), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Text('إضافة تلميذ',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: colors.textPrimary)),
+            ]),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ─── الصورة ───
+                _buildPhotoPicker(
+                  context: context,
+                  photoBase64: photoBase64,
+                  fullName: nameController.text,
+                  onPicked: (b64) => setDialogState(() => photoBase64 = b64),
+                  onRemoved: () => setDialogState(() => photoBase64 = null),
+                ),
+                const SizedBox(height: 16),
+
+                // ─── الاسم ───
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  style: TextStyle(color: colors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'الاسم الكامل',
+                    hintText: 'مثال: أحمد بن علي',
+                    hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+                    labelStyle: TextStyle(
+                      color: context.isDark
+                          ? const Color(0xFF81C784)
+                          : const Color(0xFF2E7D32),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    prefixIcon: Icon(Icons.badge_outlined,
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade400,
+                        size: 20),
+                    filled: true,
+                    fillColor: colors.inputFill,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            BorderSide(color: colors.inputBorder, width: 1)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                            color: context.isDark
+                                ? const Color(0xFF4CAF50)
+                                : Colors.green.shade300,
+                            width: 1.5)),
+                  ),
+                ),
+              ],
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.textSecondary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (nameController.text.trim().isEmpty) return;
+                  Navigator.pop(context, {
+                    'fullName': nameController.text.trim(),
+                    'photoBase64': photoBase64,
+                  });
+                },
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: const Text('إضافة',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
-    if (confirmed == true && nameController.text.trim().isNotEmpty) {
-      try {
-        await ApiService.createStudent(
-          classId: widget.schoolClass.id,
-          fullName: nameController.text.trim(),
+
+    if (result == null) return;
+
+    try {
+      final student = await ApiService.createStudent(
+        classId: widget.schoolClass.id,
+        fullName: result['fullName'] as String,
+      );
+      if (result['photoBase64'] != null) {
+        await ApiService.updateStudentPhoto(
+          studentId: student.id,
+          photoBase64: result['photoBase64'] as String,
         );
-        _loadStudents();
-        if (mounted) _showSnack('تم إضافة التلميذ بنجاح', isError: false);
-      } catch (e) {
-        if (mounted) _showSnack('خطأ: $e', isError: true);
       }
+      _loadStudents();
+      if (mounted) _showSnack('تم إضافة التلميذ بنجاح', isError: false);
+    } catch (e) {
+      if (mounted) _showSnack('خطأ: $e', isError: true);
     }
   }
 
+  // ═══════════════════════════════════════════
+  // تعديل تلميذ
+  // ═══════════════════════════════════════════
   Future<void> _showEditStudentDialog(Student student) async {
     final nameController = TextEditingController(text: student.fullName);
-    final confirmed = await showDialog<bool>(
+    String? photoBase64 = student.photoUrl;
+    bool photoChanged = false;
+
+    final result = await showDialog<Map<String, dynamic>?>(
       context: context,
-      builder: (context) => _buildDialog(
-        title: 'تعديل بيانات التلميذ',
-        icon: Icons.edit_outlined,
-        nameController: nameController,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final colors = context.colors;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            title: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: context.isDark ? const Color(0xFF1B3A1E) : const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.edit_outlined,
+                    color: Color(0xFF4CAF50), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('تعديل بيانات التلميذ',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        color: colors.textPrimary)),
+              ),
+            ]),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildPhotoPicker(
+                  context: context,
+                  photoBase64: photoBase64,
+                  fullName: nameController.text,
+                  onPicked: (b64) => setDialogState(() {
+                    photoBase64 = b64;
+                    photoChanged = true;
+                  }),
+                  onRemoved: () => setDialogState(() {
+                    photoBase64 = null;
+                    photoChanged = true;
+                  }),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  style: TextStyle(color: colors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'الاسم الكامل',
+                    hintText: 'مثال: أحمد بن علي',
+                    hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+                    labelStyle: TextStyle(
+                      color: context.isDark
+                          ? const Color(0xFF81C784)
+                          : const Color(0xFF2E7D32),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    prefixIcon: Icon(Icons.badge_outlined,
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade400,
+                        size: 20),
+                    filled: true,
+                    fillColor: colors.inputFill,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            BorderSide(color: colors.inputBorder, width: 1)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                            color: context.isDark
+                                ? const Color(0xFF4CAF50)
+                                : Colors.green.shade300,
+                            width: 1.5)),
+                  ),
+                ),
+              ],
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.textSecondary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (nameController.text.trim().isEmpty) return;
+                  Navigator.pop(context, {
+                    'fullName': nameController.text.trim(),
+                    'photoBase64': photoBase64,
+                    'photoChanged': photoChanged,
+                  });
+                },
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: const Text('حفظ',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
-    if (confirmed == true &&
-        nameController.text.trim().isNotEmpty &&
-        nameController.text.trim() != student.fullName) {
-      try {
+
+    if (result == null) return;
+
+    try {
+      // اسم
+      if (result['fullName'] != student.fullName) {
         await ApiService.updateStudent(
           studentId: student.id,
-          fullName: nameController.text.trim(),
+          fullName: result['fullName'] as String,
         );
-        _loadStudents();
-        if (mounted) _showSnack('تم تعديل البيانات', isError: false);
-      } catch (e) {
-        if (mounted) _showSnack('خطأ: $e', isError: true);
       }
+      // صورة
+      if (result['photoChanged'] == true) {
+        if (result['photoBase64'] == null) {
+          await ApiService.deleteStudentPhoto(student.id);
+        } else {
+          await ApiService.updateStudentPhoto(
+            studentId: student.id,
+            photoBase64: result['photoBase64'] as String,
+          );
+        }
+      }
+      _loadStudents();
+      if (mounted) _showSnack('تم تعديل البيانات', isError: false);
+    } catch (e) {
+      if (mounted) _showSnack('خطأ: $e', isError: true);
     }
   }
 
+  // ═══════════════════════════════════════════
+  // منتقي الصورة
+  // ═══════════════════════════════════════════
+  Widget _buildPhotoPicker({
+    required BuildContext context,
+    required String? photoBase64,
+    required String fullName,
+    required Function(String?) onPicked,
+    required VoidCallback onRemoved,
+  }) {
+    final colors = context.colors;
+    final hasPhoto = photoBase64 != null && photoBase64.trim().isNotEmpty;
+
+    return Column(children: [
+      Stack(
+        children: [
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: colors.cardBorder,
+                width: 2,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: hasPhoto
+                  ? Image.memory(
+                      base64Decode(photoBase64),
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) =>
+                          _photoPlaceholder(colors, fullName),
+                    )
+                  : _photoPlaceholder(colors, fullName),
+            ),
+          ),
+          // زر الكاميرا
+          Positioned(
+            bottom: -4,
+            right: -4,
+            child: Material(
+              color: Colors.green.shade600,
+              shape: const CircleBorder(),
+              elevation: 3,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _pickImage(onPicked),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(Icons.camera_alt,
+                      color: Colors.white, size: 18),
+                ),
+              ),
+            ),
+          ),
+          // زر الحذف
+          if (hasPhoto)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Material(
+                color: Colors.red.shade600,
+                shape: const CircleBorder(),
+                elevation: 3,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onRemoved,
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.close,
+                        color: Colors.white, size: 14),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      Text(
+        hasPhoto ? 'تغيير الصورة' : 'إضافة صورة',
+        style: TextStyle(
+          fontSize: 11,
+          color: colors.textTertiary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ]);
+  }
+
+  Widget _photoPlaceholder(AppColors colors, String fullName) {
+    final initial = fullName.trim().isEmpty
+        ? '?'
+        : fullName.trim().split(' ').first[0];
+    return Container(
+      color: colors.inputFill,
+      child: Center(
+        child: Text(initial,
+            style: TextStyle(
+                color: colors.textTertiary,
+                fontWeight: FontWeight.bold,
+                fontSize: 32)),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(Function(String?) onPicked) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 600,
+        maxHeight: 600,
+        imageQuality: 70,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      onPicked(base64Encode(bytes));
+    } catch (e) {
+      if (mounted) _showSnack('فشل اختيار الصورة: $e', isError: true);
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  // حذف تلميذ
+  // ═══════════════════════════════════════════
   Future<void> _confirmDelete(Student student) async {
     final colors = context.colors;
     final confirmed = await showDialog<bool>(
@@ -302,93 +693,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
         if (mounted) _showSnack('خطأ: $e', isError: true);
       }
     }
-  }
-
-  Widget _buildDialog({
-    required String title,
-    required IconData icon,
-    required TextEditingController nameController,
-  }) {
-    final colors = context.colors;
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      title: Row(children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: context.isDark ? const Color(0xFF1B3A1E) : const Color(0xFFE8F5E9),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: const Color(0xFF4CAF50), size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(title,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 17,
-                  color: colors.textPrimary)),
-        ),
-      ]),
-      content: TextField(
-        controller: nameController,
-        autofocus: true,
-        textCapitalization: TextCapitalization.words,
-        textInputAction: TextInputAction.done,
-        style: TextStyle(color: colors.textPrimary),
-        decoration: InputDecoration(
-          labelText: 'الاسم الكامل',
-          hintText: 'مثال: أحمد بن علي',
-          hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
-          labelStyle: TextStyle(
-            color: context.isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32),
-            fontWeight: FontWeight.w600,
-          ),
-          prefixIcon: Icon(Icons.badge_outlined,
-              color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade400,
-              size: 20),
-          filled: true,
-          fillColor: colors.inputFill,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: colors.inputBorder, width: 1)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                  color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300,
-                  width: 1.5)),
-        ),
-      ),
-      actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          style: TextButton.styleFrom(
-            foregroundColor: colors.textSecondary,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          ),
-          child: const Text('إلغاء'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () => Navigator.pop(context, true),
-          icon: const Icon(Icons.check_rounded, size: 18),
-          label: const Text('حفظ',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green.shade600,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      ],
-    );
   }
 
   void _showSnack(String message, {required bool isError}) {
@@ -492,29 +796,24 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   ),
                 ),
                 actions: [
-                  // تصدير
                   _buildIconButton(
                     icon: Icons.ios_share,
                     onTap: _exporting ? null : _showExportOptions,
                   ),
-                  // الملاحظات
                   _buildTextButton(
                     icon: Icons.sticky_note_2_outlined,
                     label: 'الملاحظات',
                     onTap: _goToNotes,
                   ),
-                  // الدرجات
                   _buildTextButton(
                     icon: Icons.grade_outlined,
                     label: 'الدرجات',
                     onTap: _goToGrades,
                   ),
-                  // الإحصائيات
                   _buildIconButton(
                     icon: Icons.insights,
                     onTap: _goToStats,
                   ),
-                  // الحضور
                   _buildTextButton(
                     icon: Icons.fact_check,
                     label: 'الحضور',
@@ -869,23 +1168,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Row(children: [
-                Container(
-                  width: 52, height: 52,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Colors.green.shade400, Colors.green.shade700],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Center(
-                    child: Text(_getInitials(student.fullName),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18)),
-                  ),
+                StudentAvatar(
+                  studentId: student.id,
+                  fullName: student.fullName,
+                  photoBase64: student.photoUrl,
+                  size: 52,
+                  borderRadius: 14,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -946,12 +1234,5 @@ class _StudentsScreenState extends State<StudentsScreen> {
         ),
       ),
     );
-  }
-
-  String _getInitials(String name) {
-    if (name.isEmpty) return '?';
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}';
-    return parts[0][0];
   }
 }
