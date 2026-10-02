@@ -6,8 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 class MessageTemplate {
   final String id;
   final String title;
-  final String category; // ABSENCE, PRAISE, WARNING, MEETING, GENERAL
-  final String body;     // يستخدم {الاسم} و {التلميذ}
+  final String category;
+  final String body;
 
   const MessageTemplate({
     required this.id,
@@ -21,19 +21,14 @@ class MessageTemplate {
     String? teacherName,
     String? schoolName,
   }) {
-    var text = body
+    return body
         .replaceAll('{الطالب}', studentName)
         .replaceAll('{الأستاذ}', teacherName ?? 'الأستاذ')
         .replaceAll('{المدرسة}', schoolName ?? 'المدرسة');
-    return text;
   }
 }
 
-// ═══════════════════════════════════════════
-// 25 رسالة جاهزة
-// ═══════════════════════════════════════════
 const kMessageTemplates = <MessageTemplate>[
-  // ═══ الغياب (5) ═══
   MessageTemplate(
     id: 'abs_today',
     title: 'غياب اليوم',
@@ -78,8 +73,6 @@ const kMessageTemplates = <MessageTemplate>[
         'نرجو الحضور إلى المدرسة للقاء الإدارة في أقرب وقت.\n\n'
         '{المدرسة}',
   ),
-
-  // ═══ الثناء (5) ═══
   MessageTemplate(
     id: 'pr_excellent',
     title: 'نتيجة ممتازة',
@@ -125,8 +118,6 @@ const kMessageTemplates = <MessageTemplate>[
         'هذا سلوك نبيل يستحق التقدير.\n\n'
         '{الأستاذ}',
   ),
-
-  // ═══ التنبيه (5) ═══
   MessageTemplate(
     id: 'wn_homework',
     title: 'عدم إنجاز الواجب',
@@ -172,8 +163,6 @@ const kMessageTemplates = <MessageTemplate>[
         'نرجو متابعته لمنع تكرار الأمر.\n\n'
         '{الأستاذ}',
   ),
-
-  // ═══ المواعيد (5) ═══
   MessageTemplate(
     id: 'mt_parents',
     title: 'دعوة لقاء الأولياء',
@@ -217,8 +206,6 @@ const kMessageTemplates = <MessageTemplate>[
         'يشارك {الطالب} في مشروع مدرسي. نرجو دعمه لإنجازه في الوقت المحدد.\n\n'
         '{الأستاذ}',
   ),
-
-  // ═══ عام (5) ═══
   MessageTemplate(
     id: 'gn_welcome',
     title: 'ترحيب',
@@ -267,36 +254,51 @@ const kMessageTemplates = <MessageTemplate>[
 ];
 
 // ═══════════════════════════════════════════
-// خدمة الإرسال
+// خدمة الإرسال — ✅ مُصلَّحة
 // ═══════════════════════════════════════════
 class MessagingService {
   /// إرسال رسالة عبر واتساب
-  /// يعيد true إذا نجح الفتح
+  /// ✅ نستخدم launchUrl مباشرة بدون canLaunchUrl (السبب: canLaunchUrl يفشل أحياناً)
   static Future<bool> sendWhatsApp({
     required String phone,
     required String message,
   }) async {
-    // تنظيف رقم الهاتف من الرموز
     final cleanPhone = _cleanPhone(phone);
     if (cleanPhone.isEmpty) return false;
 
-    // إضافة رمز الدولة إن لم يكن موجوداً (الجزائر = 213)
     final fullPhone = _ensureCountryCode(cleanPhone);
 
-    final uri = Uri.parse(
-      'https://wa.me/$fullPhone?text=${Uri.encodeComponent(message)}',
-    );
-
+    // ✅ محاولة 1: تطبيق واتساب مباشرة
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        return true;
-      }
+      final uri = Uri.parse(
+        'whatsapp://send?phone=$fullPhone&text=${Uri.encodeComponent(message)}',
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return true;
     } catch (_) {}
+
+    // ✅ محاولة 2: واتساب بزنس
+    try {
+      final uri = Uri.parse(
+        'whatsapp-business://send?phone=$fullPhone&text=${Uri.encodeComponent(message)}',
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return true;
+    } catch (_) {}
+
+    // ✅ محاولة 3: wa.me (يعمل بدون تطبيق)
+    try {
+      final uri = Uri.parse(
+        'https://wa.me/$fullPhone?text=${Uri.encodeComponent(message)}',
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return true;
+    } catch (_) {}
+
     return false;
   }
 
-  /// إرسال SMS (احتياطي)
+  /// إرسال SMS
   static Future<bool> sendSMS({
     required String phone,
     required String message,
@@ -304,15 +306,24 @@ class MessagingService {
     final cleanPhone = _cleanPhone(phone);
     if (cleanPhone.isEmpty) return false;
 
-    final uri = Uri.parse(
-      'sms:$cleanPhone?body=${Uri.encodeComponent(message)}',
-    );
+    // ✅ محاولة 1: sms:
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        return true;
-      }
+      final uri = Uri.parse(
+        'sms:$cleanPhone?body=${Uri.encodeComponent(message)}',
+      );
+      await launchUrl(uri);
+      return true;
     } catch (_) {}
+
+    // ✅ محاولة 2: smsto:
+    try {
+      final uri = Uri.parse(
+        'smsto:$cleanPhone?body=${Uri.encodeComponent(message)}',
+      );
+      await launchUrl(uri);
+      return true;
+    } catch (_) {}
+
     return false;
   }
 
@@ -321,49 +332,37 @@ class MessagingService {
     final cleanPhone = _cleanPhone(phone);
     if (cleanPhone.isEmpty) return false;
 
-    final uri = Uri.parse('tel:$cleanPhone');
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        return true;
-      }
-    } catch (_) {}
-    return false;
+      final uri = Uri.parse('tel:$cleanPhone');
+      await launchUrl(uri);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  // ─── أدوات ───
   static String _cleanPhone(String phone) {
-    // نُزيل كل ما ليس رقماً أو +
-    final cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
-    return cleaned;
+    return phone.replaceAll(RegExp(r'[^\d+]'), '');
   }
 
   static String _ensureCountryCode(String phone) {
-    // إن كان يبدأ بـ 0 فقط → أضف 213 (الجزائر)
     if (phone.startsWith('0') && !phone.startsWith('00')) {
       return '213${phone.substring(1)}';
     }
-    // إن بدأ بـ 00 → أزل 00
     if (phone.startsWith('00')) {
       return phone.substring(2);
     }
-    // إن بدأ بـ +
     if (phone.startsWith('+')) {
       return phone.substring(1);
     }
-    // إذا كان موجوداً بالفعل مع رمز الدولة
     return phone;
   }
 
-  /// عرض الرقم بتنسيق جميل
   static String formatPhone(String phone) {
     final clean = _cleanPhone(phone);
-    if (clean.length >= 10) {
-      // مثال: 0555123456 → 0555 12 34 56
-      if (clean.length == 10) {
-        return '${clean.substring(0, 4)} ${clean.substring(4, 6)} '
-            '${clean.substring(6, 8)} ${clean.substring(8)}';
-      }
+    if (clean.length == 10) {
+      return '${clean.substring(0, 4)} ${clean.substring(4, 6)} '
+          '${clean.substring(6, 8)} ${clean.substring(8)}';
     }
     return clean;
   }
