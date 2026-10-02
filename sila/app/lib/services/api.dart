@@ -324,9 +324,7 @@ class SessionGrades {
         maxScore: (json['maxScore'] as num).toDouble(),
         coeff: json['coeff'] as int,
         note: json['note'] as String?,
-        records: (json['records'] as List)
-            .map((e) => SessionRecord.fromJson(e))
-            .toList(),
+        records: (json['records'] as List).map((e) => SessionRecord.fromJson(e)).toList(),
       );
 }
 
@@ -355,6 +353,71 @@ class SessionRecord {
         coeff: json['coeff'] as int,
         note: json['note'] as String?,
       );
+}
+
+// ═══════════════════════════════════════════
+// نماذج الملاحظات
+// ═══════════════════════════════════════════
+class NoteItem {
+  final int id;
+  final String type; // POSITIVE, NEGATIVE, INFO, JOURNAL
+  final String title;
+  final String content;
+  final DateTime date;
+  final int? studentId;
+  final String? studentName;
+
+  NoteItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.content,
+    required this.date,
+    this.studentId,
+    this.studentName,
+  });
+
+  factory NoteItem.fromJson(Map<String, dynamic> json) => NoteItem(
+        id: json['id'] as int,
+        type: json['type'] as String,
+        title: json['title'] as String,
+        content: json['content'] as String,
+        date: DateTime.parse(json['date'] as String),
+        studentId: json['studentId'] as int?,
+        studentName: json['studentName'] as String?,
+      );
+
+  bool get isPositive => type == 'POSITIVE';
+  bool get isNegative => type == 'NEGATIVE';
+  bool get isInfo => type == 'INFO';
+  bool get isJournal => type == 'JOURNAL';
+}
+
+class StudentNotes {
+  final int positive;
+  final int negative;
+  final int info;
+  final int total;
+  final List<NoteItem> notes;
+
+  StudentNotes({
+    required this.positive,
+    required this.negative,
+    required this.info,
+    required this.total,
+    required this.notes,
+  });
+
+  factory StudentNotes.fromJson(Map<String, dynamic> json) {
+    final s = json['stats'];
+    return StudentNotes(
+      positive: s['positive'] as int,
+      negative: s['negative'] as int,
+      info: s['info'] as int,
+      total: s['total'] as int,
+      notes: (json['notes'] as List).map((e) => NoteItem.fromJson(e)).toList(),
+    );
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -572,7 +635,6 @@ class ApiService {
     throw Exception('فشل جلب درجات التلميذ');
   }
 
-  /// جلب درجات جلسة محددة (للتعديل)
   static Future<SessionGrades> getSessionGrades({
     required int classId,
     required String assessment,
@@ -588,11 +650,68 @@ class ApiService {
     final response = await http.get(uri).timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return SessionGrades.fromJson(body['data']);
-      }
+      if (body['success'] == true) return SessionGrades.fromJson(body['data']);
     }
     throw Exception('فشل جلب درجات الجلسة');
+  }
+
+  // ───────── الملاحظات ─────────
+  static Future<NoteItem> createNote({
+    required int classId,
+    int? studentId,
+    required String type,
+    required String title,
+    required String content,
+    required DateTime date,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/notes'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'classId': classId,
+        'studentId': studentId,
+        'type': type,
+        'title': title,
+        'content': content,
+        'date': _formatDate(date),
+      }),
+    ).timeout(const Duration(seconds: 60));
+    if (response.statusCode == 201) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) return NoteItem.fromJson(body['data']);
+    }
+    throw Exception('فشل إنشاء الملاحظة');
+  }
+
+  static Future<List<NoteItem>> getClassNotes(int classId) async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/notes'))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return (body['data']['notes'] as List).map((e) => NoteItem.fromJson(e)).toList();
+      }
+    }
+    throw Exception('فشل جلب الملاحظات');
+  }
+
+  static Future<StudentNotes> getStudentNotes(int studentId) async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/students/$studentId/notes'))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) return StudentNotes.fromJson(body['data']);
+    }
+    throw Exception('فشل جلب ملاحظات التلميذ');
+  }
+
+  static Future<void> deleteNote(int noteId) async {
+    final response = await http
+        .delete(Uri.parse('$_baseUrl/api/notes/$noteId'))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode != 200) throw Exception('فشل حذف الملاحظة');
   }
 
   // ───────── أدوات ─────────
