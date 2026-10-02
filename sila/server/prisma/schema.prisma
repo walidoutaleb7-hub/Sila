@@ -7,38 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// جدول الأقسام
 model Class {
-  id        Int       @id @default(autoincrement())
-  name      String    @db.VarChar(50)
-  level     String    @db.VarChar(20)
-  createdAt DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(50)
+  level     String   @db.VarChar(20)
+  createdAt DateTime @default(now())
 
-  students  Student[]
+  students Student[]
 
   @@map("classes")
 }
 
-// جدول التلاميذ
 model Student {
   id         Int      @id @default(autoincrement())
   fullName   String   @db.VarChar(200)
   classId    Int
   createdAt  DateTime @default(now())
 
-  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
   attendance Attendance[]
+  grades     Grade[]
 
   @@index([classId])
   @@map("students")
 }
 
-// جدول الحضور
 model Attendance {
   id        Int      @id @default(autoincrement())
   studentId Int
   date      DateTime @db.Date
-  status    String   @db.VarChar(20) // PRESENT أو ABSENT
+  status    String   @db.VarChar(20)
   createdAt DateTime @default(now())
 
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -46,4 +44,23 @@ model Attendance {
   @@unique([studentId, date])
   @@index([date])
   @@map("attendance")
-} 
+}
+
+model Grade {
+  id          Int      @id @default(autoincrement())
+  studentId   Int
+  classId     Int
+  assessment  String   @db.VarChar(50)
+  score       Float
+  maxScore    Float    @default(20)
+  coeff       Int      @default(1)
+  date        DateTime @db.Date
+  note        String?  @db.VarChar(500)
+  createdAt   DateTime @default(now())
+
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([classId, date])
+  @@map("grades")
+}
