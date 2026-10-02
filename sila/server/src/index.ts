@@ -15,22 +15,16 @@ const TOKEN_EXPIRY = '30d';
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-// ═══════════════════════════════════════════
-// أدوات مساعدة
-// ═══════════════════════════════════════════
 const asyncHandler = (fn: Function) =>
   (req: Request, res: Response, next: NextFunction) =>
     Promise.resolve(fn(req, res, next)).catch(next);
 
-// ═══════════════════════════════════════════
-// أنواع
-// ═══════════════════════════════════════════
 interface AuthRequest extends Request {
   userId?: string;
 }
 
 // ═══════════════════════════════════════════
-// Middleware: التحقق من JWT
+// Middleware: JWT
 // ═══════════════════════════════════════════
 const authenticate = asyncHandler(
   async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -59,14 +53,14 @@ const authenticate = asyncHandler(
     } catch (err) {
       return res.status(401).json({
         success: false,
-        error: { code: 'INVALID_TOKEN', message: 'جلسة منتهية، سجّل الدخول من جديد' },
+        error: { code: 'INVALID_TOKEN', message: 'جلسة منتهية' },
       });
     }
   },
 );
 
 // ═══════════════════════════════════════════
-// 1. Health Check (عام)
+// 1. Health
 // ═══════════════════════════════════════════
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -79,13 +73,13 @@ app.get('/', (req: Request, res: Response) => {
 // ═══════════════════════════════════════════
 // 2. المصادقة
 // ═══════════════════════════════════════════
-
-// ─── إنشاء حساب ───
 const registerSchema = z.object({
-  email: z.string().email('البريد الإلكتروني غير صحيح').max(150),
-  password: z.string().min(6, 'كلمة المرور 6 أحرف على الأقل').max(100),
-  fullName: z.string().min(2, 'الاسم مطلوب').max(200),
+  email: z.string().email().max(150),
+  password: z.string().min(6).max(100),
+  fullName: z.string().min(2).max(200),
   schoolName: z.string().max(200).optional().nullable(),
+  securityQuestion: z.string().min(5).max(200),
+  securityAnswer: z.string().min(2).max(200),
 });
 
 app.post(
@@ -93,34 +87,33 @@ app.post(
   asyncHandler(async (req: Request, res: Response) => {
     const data = registerSchema.parse(req.body);
 
-    // تحقق: هل البريد مسجّل؟
     const existing = await prisma.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
     if (existing) {
       return res.status(409).json({
         success: false,
-        error: {
-          code: 'EMAIL_EXISTS',
-          message: 'هذا البريد الإلكتروني مستخدم مسبقاً',
-        },
+        error: { code: 'EMAIL_EXISTS', message: 'هذا البريد مستخدم مسبقاً' },
       });
     }
 
-    // تشفير كلمة المرور
     const passwordHash = await bcrypt.hash(data.password, 10);
+    const securityAnswerHash = await bcrypt.hash(
+      data.securityAnswer.trim().toLowerCase(),
+      10,
+    );
 
-    // إنشاء المستخدم
     const user = await prisma.user.create({
       data: {
         email: data.email.toLowerCase(),
         passwordHash,
         fullName: data.fullName,
         schoolName: data.schoolName || null,
+        securityQuestion: data.securityQuestion.trim(),
+        securityAnswerHash,
       },
     });
 
-    // توليد JWT
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
       expiresIn: TOKEN_EXPIRY,
     });
@@ -140,7 +133,6 @@ app.post(
   }),
 );
 
-// ─── تسجيل دخول ───
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -191,6 +183,75 @@ app.post(
           schoolName: user.schoolName,
         },
       },
+    });
+  }),
+);
+
+// ─── سؤال الأمان ───
+app.post(
+  '/api/auth/security-question',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = z.object({ email: z.string().email() }).parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { email: data.email.toLowerCase() },
+    });
+
+    if (!user || !user.securityQuestion) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'لا يوجد حساب بهذا البريد، أو لم يُسجَّل سؤال أمان',
+        },
+      });
+    }
+
+    res.json({ success: true, data: { question: user.securityQuestion } });
+  }),
+);
+
+// ─── إعادة تعيين كلمة المرور ───
+const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  answer: z.string().min(1).max(200),
+  newPassword: z.string().min(6).max(100),
+});
+
+app.post(
+  '/api/auth/reset-password',
+  asyncHandler(async (req: Request, res: Response) => {
+    const data = resetPasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({
+      where: { email: data.email.toLowerCase() },
+    });
+
+    if (!user || !user.securityAnswerHash) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'الحساب غير موجود' },
+      });
+    }
+
+    const cleanAnswer = data.answer.trim().toLowerCase();
+    const ok = await bcrypt.compare(cleanAnswer, user.securityAnswerHash);
+    if (!ok) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'WRONG_ANSWER', message: 'الجواب غير صحيح' },
+      });
+    }
+
+    const newHash = await bcrypt.hash(data.newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash },
+    });
+
+    res.json({
+      success: true,
+      data: { message: 'تم تغيير كلمة المرور بنجاح' },
     });
   }),
 );
@@ -255,15 +316,28 @@ app.put(
 // كل ما يلي يتطلب تسجيل دخول
 // ═══════════════════════════════════════════
 app.use('/api', (req, res, next) => {
-  // نستثني المسارات العامة
-  if (
-    req.path === '/auth/register' ||
-    req.path === '/auth/login'
-  ) {
+  if (req.path === '/auth/register' || req.path === '/auth/login') {
     return next();
   }
   return authenticate(req, res, next);
 });
+
+// ═══════════════════════════════════════════
+// أدوات التحقق من الملكية
+// ═══════════════════════════════════════════
+async function ownsClass(classId: number, userId: string): Promise<boolean> {
+  const c = await prisma.class.findFirst({
+    where: { id: classId, userId },
+  });
+  return c !== null;
+}
+
+async function ownsStudent(studentId: number, userId: string): Promise<boolean> {
+  const s = await prisma.student.findFirst({
+    where: { id: studentId, class: { userId } },
+  });
+  return s !== null;
+}
 
 // ═══════════════════════════════════════════
 // 3. الأقسام
@@ -278,11 +352,7 @@ app.post(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const data = createClassSchema.parse(req.body);
     const newClass = await prisma.class.create({
-      data: {
-        name: data.name,
-        level: data.level,
-        userId: req.userId!,
-      },
+      data: { name: data.name, level: data.level, userId: req.userId! },
     });
     res.status(201).json({ success: true, data: newClass });
   }),
@@ -301,30 +371,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// دالة: هل القسم لي؟
-// ═══════════════════════════════════════════
-async function ownsClass(
-  classId: number,
-  userId: string,
-): Promise<boolean> {
-  const c = await prisma.class.findFirst({
-    where: { id: classId, userId },
-  });
-  return c !== null;
-}
-
-async function ownsStudent(
-  studentId: number,
-  userId: string,
-): Promise<boolean> {
-  const s = await prisma.student.findFirst({
-    where: { id: studentId, class: { userId } },
-  });
-  return s !== null;
-}
-
-// ═══════════════════════════════════════════
-// 4. إضافة تلميذ
+// 4. التلاميذ
 // ═══════════════════════════════════════════
 const createStudentSchema = z.object({
   fullName: z.string().min(2).max(200),
@@ -342,14 +389,12 @@ app.post(
         error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
       });
     }
-
     if (!(await ownsClass(classId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
       });
     }
-
     const data = createStudentSchema.parse(req.body);
     const student = await prisma.student.create({
       data: {
@@ -363,18 +408,37 @@ app.post(
   }),
 );
 
-// ═══════════════════════════════════════════
-// 5. جلب تلاميذ قسم (مع غياب متكرر)
-// ═══════════════════════════════════════════
+// ─── دالة: حساب الغياب المتتالي (يوم بيوم) ───
 function computeConsecutiveAbsences(
-  records: { date: Date; status: string }[],
+  records: { date: Date; period: string; status: string }[],
 ): number {
   if (records.length === 0) return 0;
+
+  // تجميع حسب اليوم
+  const byDay = new Map<string, { hasPresent: boolean; hasAbsent: boolean }>();
+  for (const r of records) {
+    const key = new Date(r.date).toISOString().split('T')[0];
+    if (!byDay.has(key)) {
+      byDay.set(key, { hasPresent: false, hasAbsent: false });
+    }
+    const day = byDay.get(key)!;
+    if (r.status === 'PRESENT') day.hasPresent = true;
+    if (r.status === 'ABSENT') day.hasAbsent = true;
+  }
+
+  // ترتيب الأيام تنازلياً
+  const sortedDays = [...byDay.entries()]
+    .sort((a, b) => (a[0] > b[0] ? -1 : 1));
+
+  // عدّ الأيام المتتالية التي كان فيها غياب (بدون حضور)
   let count = 0;
   let prevDate: Date | null = null;
-  for (const r of records) {
-    if (r.status !== 'ABSENT') break;
-    const d = new Date(r.date);
+  for (const [dateStr, day] of sortedDays) {
+    // يوم "غياب كامل" = فيه غياب وليس فيه حضور
+    const isFullAbsenceDay = day.hasAbsent && !day.hasPresent;
+    if (!isFullAbsenceDay) break;
+
+    const d = new Date(dateStr);
     if (prevDate !== null) {
       const diffDays = Math.round(
         (prevDate.getTime() - d.getTime()) / (1000 * 60 * 60 * 24),
@@ -397,7 +461,6 @@ app.get(
         error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
       });
     }
-
     if (!(await ownsClass(classId, req.userId!))) {
       return res.status(404).json({
         success: false,
@@ -411,7 +474,7 @@ app.get(
       include: {
         attendance: {
           orderBy: { date: 'desc' },
-          take: 15,
+          take: 20,
         },
       },
     });
@@ -431,19 +494,16 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 6. تسجيل الحضور
+// 5. الحضور (مع period)
 // ═══════════════════════════════════════════
 const attendanceSchema = z.object({
   classId: z.number().int().positive(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  records: z
-    .array(
-      z.object({
-        studentId: z.number().int().positive(),
-        status: z.enum(['PRESENT', 'ABSENT']),
-      }),
-    )
-    .min(1),
+  period: z.enum(['MORNING', 'AFTERNOON']),
+  records: z.array(z.object({
+    studentId: z.number().int().positive(),
+    status: z.enum(['PRESENT', 'ABSENT']),
+  })).min(1),
 });
 
 app.post(
@@ -463,32 +523,39 @@ app.post(
       data.records.map((record) =>
         prisma.attendance.upsert({
           where: {
-            studentId_date: {
+            studentId_date_period: {
               studentId: record.studentId,
               date: attendanceDate,
+              period: data.period,
             },
           },
           update: { status: record.status },
           create: {
             studentId: record.studentId,
             date: attendanceDate,
+            period: data.period,
             status: record.status,
           },
         }),
       ),
     );
-    res.json({ success: true, data: { saved: results.length, date: data.date } });
+    res.json({
+      success: true,
+      data: {
+        saved: results.length,
+        date: data.date,
+        period: data.period,
+      },
+    });
   }),
 );
 
-// ═══════════════════════════════════════════
-// 7. جلب سجل الحضور ليوم
-// ═══════════════════════════════════════════
 app.get(
   '/api/attendance',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const classId = parseInt(String(req.query.classId));
     const dateStr = req.query.date as string;
+    const period = req.query.period as string;
 
     if (isNaN(classId)) {
       return res.status(400).json({
@@ -500,6 +567,12 @@ app.get(
       return res.status(400).json({
         success: false,
         error: { code: 'INVALID_DATE', message: 'التاريخ غير صحيح' },
+      });
+    }
+    if (!period || !['MORNING', 'AFTERNOON'].includes(period)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_PERIOD', message: 'الفترة غير صحيحة' },
       });
     }
 
@@ -514,7 +587,11 @@ app.get(
     const students = await prisma.student.findMany({
       where: { classId },
       orderBy: { fullName: 'asc' },
-      include: { attendance: { where: { date: attendanceDate } } },
+      include: {
+        attendance: {
+          where: { date: attendanceDate, period },
+        },
+      },
     });
     const result = students.map((s) => ({
       studentId: s.id,
@@ -525,13 +602,13 @@ app.get(
     }));
     res.json({
       success: true,
-      data: { classId, date: dateStr, students: result },
+      data: { classId, date: dateStr, period, students: result },
     });
   }),
 );
 
 // ═══════════════════════════════════════════
-// 7.5. تعديل تلميذ
+// 6. تعديل التلميذ
 // ═══════════════════════════════════════════
 const updateStudentSchema = z.object({
   fullName: z.string().min(2).max(200),
@@ -549,14 +626,12 @@ app.put(
         error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
       });
     }
-
     if (!(await ownsStudent(studentId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
     const data = updateStudentSchema.parse(req.body);
     const student = await prisma.student.findUnique({
       where: { id: studentId },
@@ -567,7 +642,6 @@ app.put(
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
     const updated = await prisma.student.update({
       where: { id: studentId },
       data: {
@@ -586,13 +660,6 @@ app.put(
   }),
 );
 
-// ═══════════════════════════════════════════
-// 7.5.1. تحديث صورة
-// ═══════════════════════════════════════════
-const updatePhotoSchema = z.object({
-  photoUrl: z.string().min(1).max(5_000_000),
-});
-
 app.put(
   '/api/students/:id/photo',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -603,15 +670,15 @@ app.put(
         error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
       });
     }
-
     if (!(await ownsStudent(studentId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
-    const data = updatePhotoSchema.parse(req.body);
+    const data = z.object({
+      photoUrl: z.string().min(1).max(5_000_000),
+    }).parse(req.body);
     const updated = await prisma.student.update({
       where: { id: studentId },
       data: { photoUrl: data.photoUrl },
@@ -620,9 +687,6 @@ app.put(
   }),
 );
 
-// ═══════════════════════════════════════════
-// 7.5.2. حذف صورة
-// ═══════════════════════════════════════════
 app.delete(
   '/api/students/:id/photo',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -633,14 +697,12 @@ app.delete(
         error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
       });
     }
-
     if (!(await ownsStudent(studentId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
     const updated = await prisma.student.update({
       where: { id: studentId },
       data: { photoUrl: null },
@@ -649,9 +711,6 @@ app.delete(
   }),
 );
 
-// ═══════════════════════════════════════════
-// 7.6. حذف تلميذ
-// ═══════════════════════════════════════════
 app.delete(
   '/api/students/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -662,21 +721,19 @@ app.delete(
         error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
       });
     }
-
     if (!(await ownsStudent(studentId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
     await prisma.student.delete({ where: { id: studentId } });
     res.json({ success: true, data: { deletedId: studentId } });
   }),
 );
 
 // ═══════════════════════════════════════════
-// 7.7. إحصائيات القسم
+// 7. إحصائيات القسم (مع period)
 // ═══════════════════════════════════════════
 app.get(
   '/api/classes/:id/stats',
@@ -738,12 +795,8 @@ app.get(
 
     const studentStats = students.map((s) => {
       const sAttendance = allAttendance.filter((a) => a.studentId === s.id);
-      const sPresent = sAttendance.filter(
-        (a) => a.status === 'PRESENT',
-      ).length;
-      const sAbsent = sAttendance.filter(
-        (a) => a.status === 'ABSENT',
-      ).length;
+      const sPresent = sAttendance.filter((a) => a.status === 'PRESENT').length;
+      const sAbsent = sAttendance.filter((a) => a.status === 'ABSENT').length;
       const sTotal = sAttendance.length;
       const sRate = sTotal > 0 ? Math.round((sPresent / sTotal) * 100) : 0;
       return {
@@ -785,7 +838,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 7.8. حفظ دفعة درجات
+// 8. الدرجات
 // ═══════════════════════════════════════════
 const bulkGradeSchema = z.object({
   classId: z.number().int().positive(),
@@ -794,14 +847,10 @@ const bulkGradeSchema = z.object({
   coeff: z.number().int().positive().default(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(500).optional(),
-  records: z
-    .array(
-      z.object({
-        studentId: z.number().int().positive(),
-        score: z.number().min(0).max(1000),
-      }),
-    )
-    .min(1),
+  records: z.array(z.object({
+    studentId: z.number().int().positive(),
+    score: z.number().min(0).max(1000),
+  })).min(1),
 });
 
 app.post(
@@ -847,9 +896,6 @@ app.post(
   }),
 );
 
-// ═══════════════════════════════════════════
-// 7.9. جلب درجات القسم
-// ═══════════════════════════════════════════
 app.get(
   '/api/classes/:id/grades',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -860,7 +906,6 @@ app.get(
         error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
       });
     }
-
     if (!(await ownsClass(classId, req.userId!))) {
       return res.status(404).json({
         success: false,
@@ -898,18 +943,12 @@ app.get(
       coeff: s.coeff,
       note: s.note,
       count: s.count,
-      avg:
-        s.count > 0
-          ? Math.round((s.totalScore / s.count) * 100) / 100
-          : 0,
+      avg: s.count > 0 ? Math.round((s.totalScore / s.count) * 100) / 100 : 0,
     }));
     res.json({ success: true, data: { sessions } });
   }),
 );
 
-// ═══════════════════════════════════════════
-// 7.9.5. جلب درجات جلسة
-// ═══════════════════════════════════════════
 app.get(
   '/api/grades/session',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -923,7 +962,6 @@ app.get(
         error: { code: 'MISSING_PARAMS', message: 'معاملات ناقصة' },
       });
     }
-
     if (!(await ownsClass(classId, req.userId!))) {
       return res.status(404).json({
         success: false,
@@ -961,9 +999,6 @@ app.get(
   }),
 );
 
-// ═══════════════════════════════════════════
-// 7.10. جلب درجات تلميذ
-// ═══════════════════════════════════════════
 app.get(
   '/api/students/:id/grades',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -974,7 +1009,6 @@ app.get(
         error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
       });
     }
-
     if (!(await ownsStudent(studentId, req.userId!))) {
       return res.status(404).json({
         success: false,
@@ -1009,9 +1043,7 @@ app.get(
         ? Math.round((totalWeighted / totalCoeff) * 20 * 100) / 100
         : 0;
 
-    const byAssessment: {
-      [key: string]: { sum: number; count: number };
-    } = {};
+    const byAssessment: { [key: string]: { sum: number; count: number } } = {};
     for (const g of grades) {
       if (!byAssessment[g.assessment]) {
         byAssessment[g.assessment] = { sum: 0, count: 0 };
@@ -1051,7 +1083,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 7.11. سجل حضور تلميذ
+// 9. سجل حضور تلميذ (مع period)
 // ═══════════════════════════════════════════
 app.get(
   '/api/students/:id/attendance',
@@ -1063,14 +1095,12 @@ app.get(
         error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
       });
     }
-
     if (!(await ownsStudent(studentId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
     const student = await prisma.student.findUnique({
       where: { id: studentId },
     });
@@ -1080,16 +1110,14 @@ app.get(
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
     const attendance = await prisma.attendance.findMany({
       where: { studentId },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { period: 'asc' }],
     });
     const total = attendance.length;
     const present = attendance.filter((a) => a.status === 'PRESENT').length;
     const absent = attendance.filter((a) => a.status === 'ABSENT').length;
     const rate = total > 0 ? Math.round((present / total) * 100) : 0;
-
     res.json({
       success: true,
       data: {
@@ -1101,6 +1129,7 @@ app.get(
         stats: { total, present, absent, rate },
         records: attendance.map((a) => ({
           date: a.date,
+          period: a.period,
           status: a.status,
         })),
       },
@@ -1109,7 +1138,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 8. الملاحظات
+// 10. الملاحظات
 // ═══════════════════════════════════════════
 const createNoteSchema = z.object({
   classId: z.number().int().positive(),
@@ -1124,14 +1153,12 @@ app.post(
   '/api/notes',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const data = createNoteSchema.parse(req.body);
-
     if (!(await ownsClass(data.classId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
       });
     }
-
     const noteDate = new Date(data.date);
     const note = await prisma.note.create({
       data: {
@@ -1157,20 +1184,17 @@ app.get(
         error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
       });
     }
-
     if (!(await ownsClass(classId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
       });
     }
-
     const notes = await prisma.note.findMany({
       where: { classId },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
       include: { student: { select: { id: true, fullName: true } } },
     });
-
     res.json({
       success: true,
       data: {
@@ -1198,23 +1222,19 @@ app.get(
         error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
       });
     }
-
     if (!(await ownsStudent(studentId, req.userId!))) {
       return res.status(404).json({
         success: false,
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-
     const notes = await prisma.note.findMany({
       where: { studentId },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     });
-
     const positive = notes.filter((n) => n.type === 'POSITIVE').length;
     const negative = notes.filter((n) => n.type === 'NEGATIVE').length;
     const info = notes.filter((n) => n.type === 'INFO').length;
-
     res.json({
       success: true,
       data: {
@@ -1241,7 +1261,6 @@ app.delete(
         error: { code: 'INVALID_NOTE_ID', message: 'رقم الملاحظة غير صحيح' },
       });
     }
-
     const note = await prisma.note.findFirst({
       where: { id: noteId, class: { userId: req.userId! } },
     });
@@ -1251,9 +1270,198 @@ app.delete(
         error: { code: 'NOTE_NOT_FOUND', message: 'الملاحظة غير موجودة' },
       });
     }
-
     await prisma.note.delete({ where: { id: noteId } });
     res.json({ success: true, data: { deletedId: noteId } });
+  }),
+);
+
+// ═══════════════════════════════════════════
+// 11. جدول الأسبوع
+// ═══════════════════════════════════════════
+
+// ─── إنشاء حصة في الجدول ───
+const createScheduleSchema = z.object({
+  classId: z.number().int().positive(),
+  dayOfWeek: z.number().int().min(1).max(7),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  subject: z.string().min(1).max(100),
+  room: z.string().max(50).optional().nullable(),
+});
+
+app.post(
+  '/api/schedule',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const data = createScheduleSchema.parse(req.body);
+
+    if (!(await ownsClass(data.classId, req.userId!))) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
+      });
+    }
+
+    // تحقق: startTime قبل endTime
+    if (data.startTime >= data.endTime) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_TIME_RANGE',
+          message: 'وقت البداية يجب أن يكون قبل وقت النهاية',
+        },
+      });
+    }
+
+    // تحقق: لا يوجد تعارض في نفس اليوم
+    const conflict = await prisma.schedule.findFirst({
+      where: {
+        userId: req.userId!,
+        dayOfWeek: data.dayOfWeek,
+        OR: [
+          {
+            startTime: { lte: data.startTime },
+            endTime: { gt: data.startTime },
+          },
+          {
+            startTime: { lt: data.endTime },
+            endTime: { gte: data.endTime },
+          },
+        ],
+      },
+    });
+
+    if (conflict) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'TIME_CONFLICT',
+          message: 'يوجد تعارض مع حصة أخرى في هذا الوقت',
+        },
+      });
+    }
+
+    const schedule = await prisma.schedule.create({
+      data: {
+        userId: req.userId!,
+        classId: data.classId,
+        dayOfWeek: data.dayOfWeek,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        subject: data.subject,
+        room: data.room || null,
+      },
+    });
+
+    res.status(201).json({ success: true, data: schedule });
+  }),
+);
+
+// ─── جلب كل الجدول ───
+app.get(
+  '/api/schedule',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const schedules = await prisma.schedule.findMany({
+      where: { userId: req.userId! },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      include: {
+        class: {
+          select: { id: true, name: true, level: true },
+        },
+      },
+    });
+    res.json({ success: true, data: schedules });
+  }),
+);
+
+// ─── جلب جدول يوم محدد ───
+app.get(
+  '/api/schedule/day/:dayOfWeek',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const dayOfWeek = parseInt(String(req.params.dayOfWeek));
+    if (isNaN(dayOfWeek) || dayOfWeek < 1 || dayOfWeek > 7) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_DAY', message: 'اليوم غير صحيح' },
+      });
+    }
+    const schedules = await prisma.schedule.findMany({
+      where: { userId: req.userId!, dayOfWeek },
+      orderBy: { startTime: 'asc' },
+      include: {
+        class: { select: { id: true, name: true, level: true } },
+      },
+    });
+    res.json({ success: true, data: schedules });
+  }),
+);
+
+// ─── الحصة الحالية (الآن) ───
+app.get(
+  '/api/schedule/current',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const now = new Date();
+    // Dart format: 1=Monday ... 7=Sunday
+    // JS: 0=Sunday ... 6=Saturday
+    const jsDay = now.getDay();
+    const dartDay = jsDay === 0 ? 7 : jsDay;
+    const hh = now.getHours().toString().padStart(2, '0');
+    const mm = now.getMinutes().toString().padStart(2, '0');
+    const currentTime = `${hh}:${mm}`;
+
+    const current = await prisma.schedule.findFirst({
+      where: {
+        userId: req.userId!,
+        dayOfWeek: dartDay,
+        startTime: { lte: currentTime },
+        endTime: { gt: currentTime },
+      },
+      include: {
+        class: { select: { id: true, name: true, level: true } },
+      },
+    });
+
+    // الحصة القادمة (اليوم)
+    const next = await prisma.schedule.findFirst({
+      where: {
+        userId: req.userId!,
+        dayOfWeek: dartDay,
+        startTime: { gt: currentTime },
+      },
+      orderBy: { startTime: 'asc' },
+      include: {
+        class: { select: { id: true, name: true, level: true } },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: { current, next },
+    });
+  }),
+);
+
+// ─── حذف حصة ───
+app.delete(
+  '/api/schedule/:id',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const scheduleId = parseInt(String(req.params.id));
+    if (isNaN(scheduleId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_ID', message: 'رقم الحصة غير صحيح' },
+      });
+    }
+    const item = await prisma.schedule.findFirst({
+      where: { id: scheduleId, userId: req.userId! },
+    });
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'الحصة غير موجودة' },
+      });
+    }
+    await prisma.schedule.delete({ where: { id: scheduleId } });
+    res.json({ success: true, data: { deletedId: scheduleId } });
   }),
 );
 
