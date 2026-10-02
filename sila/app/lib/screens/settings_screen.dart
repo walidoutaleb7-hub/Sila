@@ -255,7 +255,6 @@ class SettingsScreen extends StatelessWidget {
   // بطاقة المستخدم
   // ═══════════════════════════════════════════
   Widget _buildUserCard(BuildContext context) {
-    final colors = context.colors;
     final user = authService.user;
 
     if (user == null) {
@@ -1241,16 +1240,17 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // ✅ الإصلاح هنا: MaterialColor بدل Color
   Widget _actionTile(
     BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    Color? color,
+    MaterialColor? color,
   }) {
     final colors = context.colors;
-    final c = color ?? Colors.green;
+    final MaterialColor c = color ?? Colors.green;
     return Material(
       color: Colors.transparent,
       child: InkWell(
