@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
+import '../services/export_service.dart';
 import '../theme/app_theme.dart';
 import 'attendance.dart';
 import 'grades_list.dart';
@@ -19,6 +20,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isSearching = false;
+  bool _exporting = false;
 
   @override
   void initState() {
@@ -38,6 +40,156 @@ class _StudentsScreenState extends State<StudentsScreen> {
     });
   }
 
+  // ═══════════════════════════════════════════
+  // التصدير
+  // ═══════════════════════════════════════════
+  Future<void> _showExportOptions() async {
+    final colors = context.colors;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: colors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // مقبض
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: colors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.ios_share,
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade700,
+                        size: 22),
+                    const SizedBox(width: 10),
+                    Text(
+                      'تصدير تقرير القسم',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Divider(height: 1, color: colors.divider),
+
+              // خيار 1: ملف CSV
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: context.isDark
+                        ? const Color(0xFF1B3A1E)
+                        : Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.table_chart_outlined,
+                      color: context.isDark
+                          ? const Color(0xFF81C784)
+                          : Colors.green.shade700,
+                      size: 22),
+                ),
+                title: Text('ملف Excel / CSV',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary)),
+                subtitle: Text('جدول كامل يفتح في Excel',
+                    style: TextStyle(
+                        fontSize: 12, color: colors.textSecondary)),
+                trailing: Icon(Icons.arrow_forward_ios,
+                    size: 14, color: colors.textTertiary),
+                onTap: () => Navigator.pop(context, 'csv'),
+              ),
+
+              // خيار 2: تقرير نصي
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: context.isDark
+                        ? const Color(0xFF1B2A3A)
+                        : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.chat_outlined,
+                      color: context.isDark
+                          ? const Color(0xFF64B5F6)
+                          : Colors.blue.shade700,
+                      size: 22),
+                ),
+                title: Text('تقرير نصي (واتساب)',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary)),
+                subtitle: Text('نص جاهز للإرسال في واتساب',
+                    style: TextStyle(
+                        fontSize: 12, color: colors.textSecondary)),
+                trailing: Icon(Icons.arrow_forward_ios,
+                    size: 14, color: colors.textTertiary),
+                onTap: () => Navigator.pop(context, 'text'),
+              ),
+
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+
+    setState(() => _exporting = true);
+
+    try {
+      final reports = await ApiService.getFullClassReport(widget.schoolClass.id);
+
+      if (reports.isEmpty) {
+        if (mounted) _showSnack('لا يوجد تلاميذ للتصدير', isError: true);
+        return;
+      }
+
+      if (choice == 'csv') {
+        await ExportService.exportClassReport(
+          schoolClass: widget.schoolClass,
+          reports: reports,
+        );
+        if (mounted) {
+          _showSnack('تم تجهيز ${reports.length} تلميذ', isError: false);
+        }
+      } else {
+        await ExportService.shareTextReport(
+          schoolClass: widget.schoolClass,
+          reports: reports,
+        );
+      }
+    } catch (e) {
+      if (mounted) _showSnack('فشل التصدير: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  // إضافة تلميذ
+  // ═══════════════════════════════════════════
   Future<void> _showAddStudentDialog() async {
     final nameController = TextEditingController();
     final confirmed = await showDialog<bool>(
@@ -100,10 +252,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: context.isDark ? const Color(0xFF3A1A1A) : const Color(0xFFFFEBEE),
+              color: context.isDark
+                  ? const Color(0xFF3A1A1A)
+                  : const Color(0xFFFFEBEE),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.delete_outline, color: Color(0xFFEF5350), size: 22),
+            child: const Icon(Icons.delete_outline,
+                color: Color(0xFFEF5350), size: 22),
           ),
           const SizedBox(width: 12),
           Text('حذف التلميذ',
@@ -140,7 +295,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
               const SizedBox(width: 6),
               Expanded(
                 child: Text('سيتم حذف كل سجلات الحضور والدرجات الخاصة به.',
-                    style: TextStyle(color: Colors.orange.shade800, fontSize: 12)),
+                    style: TextStyle(
+                        color: Colors.orange.shade800, fontSize: 12)),
               ),
             ]),
           ],
@@ -151,7 +307,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
             onPressed: () => Navigator.pop(context, false),
             style: TextButton.styleFrom(
               foregroundColor: colors.textSecondary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
             child: const Text('إلغاء'),
           ),
@@ -159,13 +316,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
             onPressed: () => Navigator.pop(context, true),
             icon: const Icon(Icons.delete_outline, size: 18),
             label: const Text('حذف',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFC62828),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -196,7 +356,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: context.isDark ? const Color(0xFF1B3A1E) : const Color(0xFFE8F5E9),
+            color: context.isDark
+                ? const Color(0xFF1B3A1E)
+                : const Color(0xFFE8F5E9),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: const Color(0xFF4CAF50), size: 22),
@@ -221,24 +383,33 @@ class _StudentsScreenState extends State<StudentsScreen> {
           hintText: 'مثال: أحمد بن علي',
           hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
           labelStyle: TextStyle(
-            color: context.isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32),
+            color: context.isDark
+                ? const Color(0xFF81C784)
+                : const Color(0xFF2E7D32),
             fontWeight: FontWeight.w600,
           ),
           prefixIcon: Icon(Icons.badge_outlined,
-              color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade400,
+              color: context.isDark
+                  ? const Color(0xFF81C784)
+                  : Colors.green.shade400,
               size: 20),
           filled: true,
           fillColor: colors.inputFill,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none),
           enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: colors.inputBorder, width: 1)),
+              borderSide:
+                  BorderSide(color: colors.inputBorder, width: 1)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                  color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300,
+                  color: context.isDark
+                      ? const Color(0xFF4CAF50)
+                      : Colors.green.shade300,
                   width: 1.5)),
         ),
       ),
@@ -262,7 +433,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],
@@ -273,34 +445,45 @@ class _StudentsScreenState extends State<StudentsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
-        Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white),
+        Icon(isError ? Icons.error_outline : Icons.check_circle,
+            color: Colors.white),
         const SizedBox(width: 8),
         Expanded(child: Text(message)),
       ]),
-      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+      backgroundColor:
+          isError ? Colors.red.shade700 : Colors.green.shade700,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
   }
 
   void _goToAttendance() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => AttendanceScreen(schoolClass: widget.schoolClass)));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => AttendanceScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToStats() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => StatsScreen(schoolClass: widget.schoolClass)));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => StatsScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToGrades() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => GradesListScreen(schoolClass: widget.schoolClass)));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) =>
+                GradesListScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToStudentDetail(Student student) {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => StudentDetailScreen(student: student)))
+    Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => StudentDetailScreen(student: student)))
         .then((_) => _loadStudents());
   }
 
@@ -309,325 +492,445 @@ class _StudentsScreenState extends State<StudentsScreen> {
     final colors = context.colors;
     return Scaffold(
       backgroundColor: colors.background,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 150,
-            pinned: true,
-            backgroundColor: colors.headerGradientMid,
-            foregroundColor: Colors.white,
-            centerTitle: true,
-            title: Text(widget.schoolClass.name,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 17)),
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: EdgeInsets.zero,
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [colors.headerGradientMid, colors.headerGradientEnd],
-                  ),
-                ),
-                child: Stack(children: [
-                  Positioned(
-                    top: -20, left: -40,
-                    child: Icon(Icons.school, size: 200,
-                        color: Colors.white.withOpacity(0.07)),
-                  ),
-                  Positioned(
-                    bottom: 20, left: 20,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.25), width: 1),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 150,
+                pinned: true,
+                backgroundColor: colors.headerGradientMid,
+                foregroundColor: Colors.white,
+                centerTitle: true,
+                title: Text(widget.schoolClass.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 17)),
+                flexibleSpace: FlexibleSpaceBar(
+                  titlePadding: EdgeInsets.zero,
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                        colors: [
+                          colors.headerGradientMid,
+                          colors.headerGradientEnd
+                        ],
                       ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.workspace_premium_outlined,
-                            size: 14, color: Colors.white),
-                        const SizedBox(width: 6),
-                        Text('المستوى ${widget.schoolClass.level}',
-                            style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600)),
-                      ]),
                     ),
-                  ),
-                ]),
-              ),
-            ),
-            actions: [
-              // الدرجات
-              _buildActionButton(
-                icon: Icons.grade_outlined,
-                label: 'الدرجات',
-                onTap: _goToGrades,
-              ),
-              // الإحصائيات
-              Padding(
-                padding: const EdgeInsets.only(left: 6, top: 8, bottom: 8),
-                child: Material(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: _goToStats,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      child: Icon(Icons.insights, size: 20),
-                    ),
+                    child: Stack(children: [
+                      Positioned(
+                        top: -20,
+                        left: -40,
+                        child: Icon(Icons.school,
+                            size: 200,
+                            color: Colors.white.withOpacity(0.07)),
+                      ),
+                      Positioned(
+                        bottom: 20,
+                        left: 20,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.25),
+                                width: 1),
+                          ),
+                          child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                    Icons.workspace_premium_outlined,
+                                    size: 14,
+                                    color: Colors.white),
+                                const SizedBox(width: 6),
+                                Text(
+                                    'المستوى ${widget.schoolClass.level}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600)),
+                              ]),
+                        ),
+                      ),
+                    ]),
                   ),
                 ),
+                actions: [
+                  // زر التصدير
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6, top: 8, bottom: 8),
+                    child: Material(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _exporting ? null : _showExportOptions,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          child: Icon(Icons.ios_share, size: 20),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // الدرجات
+                  _buildActionButton(
+                    icon: Icons.grade_outlined,
+                    label: 'الدرجات',
+                    onTap: _goToGrades,
+                  ),
+                  // الإحصائيات
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(left: 6, top: 8, bottom: 8),
+                    child: Material(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _goToStats,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          child: Icon(Icons.insights, size: 20),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // الحضور
+                  _buildActionButton(
+                    icon: Icons.fact_check,
+                    label: 'الحضور',
+                    onTap: _goToAttendance,
+                  ),
+                ],
               ),
-              // الحضور
-              _buildActionButton(
-                icon: Icons.fact_check,
-                label: 'الحضور',
-                onTap: _goToAttendance,
-                leftMargin: 8,
+
+              SliverToBoxAdapter(
+                child: FutureBuilder<List<Student>>(
+                  future: _studentsFuture,
+                  builder: (context, snapshot) {
+                    final count = snapshot.data?.length ?? 0;
+                    if (count == 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Column(children: [
+                        Row(children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: context.isDark
+                                  ? const Color(0xFF1B3A1E)
+                                  : Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(children: [
+                              Icon(Icons.people,
+                                  size: 16,
+                                  color: context.isDark
+                                      ? const Color(0xFF81C784)
+                                      : Colors.green.shade700),
+                              const SizedBox(width: 6),
+                              Text('$count تلميذ',
+                                  style: TextStyle(
+                                      color: context.isDark
+                                          ? const Color(0xFF81C784)
+                                          : Colors.green.shade700,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
+                            ]),
+                          ),
+                          const Spacer(),
+                          Material(
+                            color: _isSearching
+                                ? (context.isDark
+                                    ? const Color(0xFF1B3A1E)
+                                    : Colors.green.shade50)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                setState(() {
+                                  _isSearching = !_isSearching;
+                                  if (!_isSearching) {
+                                    _searchController.clear();
+                                    _searchQuery = '';
+                                  }
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Icon(
+                                    _isSearching
+                                        ? Icons.close
+                                        : Icons.search,
+                                    size: 22,
+                                    color: context.isDark
+                                        ? const Color(0xFF81C784)
+                                        : Colors.green.shade700),
+                              ),
+                            ),
+                          ),
+                        ]),
+                        if (_isSearching) ...[
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _searchController,
+                            autofocus: true,
+                            onChanged: (v) =>
+                                setState(() => _searchQuery = v.trim()),
+                            style: TextStyle(color: colors.textPrimary),
+                            decoration: InputDecoration(
+                              hintText: 'ابحث باسم التلميذ...',
+                              hintStyle: TextStyle(
+                                  color: colors.textTertiary, fontSize: 13),
+                              prefixIcon: Icon(Icons.search,
+                                  color: context.isDark
+                                      ? const Color(0xFF81C784)
+                                      : Colors.green.shade400,
+                                  size: 20),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: Icon(Icons.clear,
+                                          size: 18,
+                                          color: colors.textTertiary),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _searchQuery = '');
+                                      })
+                                  : null,
+                              filled: true,
+                              fillColor: colors.cardBg,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide.none),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(
+                                      color: colors.cardBorder, width: 1)),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(
+                                      color: context.isDark
+                                          ? const Color(0xFF4CAF50)
+                                          : Colors.green.shade300,
+                                      width: 1.5)),
+                            ),
+                          ),
+                        ],
+                      ]),
+                    );
+                  },
+                ),
+              ),
+
+              FutureBuilder<List<Student>>(
+                future: _studentsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                  color: Colors.green.shade600,
+                                  strokeWidth: 3),
+                              const SizedBox(height: 16),
+                              Text('جاري التحميل...',
+                                  style: TextStyle(
+                                      color: colors.textSecondary,
+                                      fontSize: 14)),
+                            ]),
+                      ),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: context.isDark
+                                        ? const Color(0xFF3A1A1A)
+                                        : Colors.red.shade50,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.wifi_off_rounded,
+                                      size: 56,
+                                      color: Colors.red.shade400),
+                                ),
+                                const SizedBox(height: 20),
+                                Text('تعذّر الاتصال',
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textPrimary)),
+                                const SizedBox(height: 8),
+                                Text('${snapshot.error}',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        color: colors.textSecondary,
+                                        fontSize: 13)),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  onPressed: _loadStudents,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('إعادة المحاولة'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green.shade700,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                  ),
+                                ),
+                              ]),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final allStudents = snapshot.data ?? [];
+                  final students = _searchQuery.isEmpty
+                      ? allStudents
+                      : allStudents
+                          .where((s) => s.fullName
+                              .toLowerCase()
+                              .contains(_searchQuery.toLowerCase()))
+                          .toList();
+
+                  if (allStudents.isEmpty) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(colors: [
+                                      context.isDark
+                                          ? const Color(0xFF1B3A1E)
+                                          : Colors.green.shade50,
+                                      context.isDark
+                                          ? const Color(0xFF1B3A1E)
+                                          : Colors.green.shade100,
+                                    ]),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.group_outlined,
+                                      size: 64, color: Color(0xFF4CAF50)),
+                                ),
+                                const SizedBox(height: 20),
+                                Text('لا يوجد تلاميذ بعد',
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textPrimary)),
+                                const SizedBox(height: 8),
+                                Text('اضغط زر + لإضافة أول تلميذ',
+                                    style: TextStyle(
+                                        color: colors.textSecondary,
+                                        fontSize: 14)),
+                              ]),
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (students.isEmpty) {
+                    return SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off,
+                                    size: 64, color: colors.textTertiary),
+                                const SizedBox(height: 16),
+                                Text('لا نتائج لـ "$_searchQuery"',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textPrimary)),
+                                const SizedBox(height: 8),
+                                Text('جرّب كلمة أخرى',
+                                    style: TextStyle(
+                                        color: colors.textSecondary,
+                                        fontSize: 13)),
+                              ]),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) =>
+                            _buildStudentCard(students[index], index),
+                        childCount: students.length,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
 
-          SliverToBoxAdapter(
-            child: FutureBuilder<List<Student>>(
-              future: _studentsFuture,
-              builder: (context, snapshot) {
-                final count = snapshot.data?.length ?? 0;
-                if (count == 0) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Column(children: [
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(children: [
-                          Icon(Icons.people, size: 16,
-                              color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700),
-                          const SizedBox(width: 6),
-                          Text('$count تلميذ',
-                              style: TextStyle(
-                                  color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13)),
-                        ]),
-                      ),
-                      const Spacer(),
-                      Material(
-                        color: _isSearching
-                            ? (context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            setState(() {
-                              _isSearching = !_isSearching;
-                              if (!_isSearching) {
-                                _searchController.clear();
-                                _searchQuery = '';
-                              }
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Icon(_isSearching ? Icons.close : Icons.search,
-                                size: 22,
-                                color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700),
-                          ),
-                        ),
-                      ),
-                    ]),
-                    if (_isSearching) ...[
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _searchController,
-                        autofocus: true,
-                        onChanged: (v) => setState(() => _searchQuery = v.trim()),
-                        style: TextStyle(color: colors.textPrimary),
-                        decoration: InputDecoration(
-                          hintText: 'ابحث باسم التلميذ...',
-                          hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
-                          prefixIcon: Icon(Icons.search,
-                              color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade400,
-                              size: 20),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(Icons.clear, size: 18, color: colors.textTertiary),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _searchQuery = '');
-                                  })
-                              : null,
-                          filled: true,
-                          fillColor: colors.cardBg,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide.none),
-                          enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(color: colors.cardBorder, width: 1)),
-                          focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                  color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300,
-                                  width: 1.5)),
-                        ),
-                      ),
-                    ],
+          // طبقة التحميل أثناء التصدير
+          if (_exporting)
+            Container(
+              color: Colors.black.withOpacity(0.4),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: colors.cardBg,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    CircularProgressIndicator(color: Colors.green.shade600),
+                    const SizedBox(height: 16),
+                    Text('جاري تجهيز التقرير...',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: colors.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text('قد يستغرق بعض الوقت',
+                        style: TextStyle(
+                            fontSize: 12, color: colors.textSecondary)),
                   ]),
-                );
-              },
-            ),
-          ),
-
-          FutureBuilder<List<Student>>(
-            future: _studentsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      CircularProgressIndicator(color: Colors.green.shade600, strokeWidth: 3),
-                      const SizedBox(height: 16),
-                      Text('جاري التحميل...',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-                    ]),
-                  ),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: context.isDark ? const Color(0xFF3A1A1A) : Colors.red.shade50,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.wifi_off_rounded, size: 56, color: Colors.red.shade400),
-                        ),
-                        const SizedBox(height: 20),
-                        Text('تعذّر الاتصال',
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: colors.textPrimary)),
-                        const SizedBox(height: 8),
-                        Text('${snapshot.error}',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: _loadStudents,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('إعادة المحاولة'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                );
-              }
-
-              final allStudents = snapshot.data ?? [];
-              final students = _searchQuery.isEmpty
-                  ? allStudents
-                  : allStudents
-                      .where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase()))
-                      .toList();
-
-              if (allStudents.isEmpty) {
-                return SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [
-                              context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50,
-                              context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade100,
-                            ]),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.group_outlined,
-                              size: 64, color: Color(0xFF4CAF50)),
-                        ),
-                        const SizedBox(height: 20),
-                        Text('لا يوجد تلاميذ بعد',
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: colors.textPrimary)),
-                        const SizedBox(height: 8),
-                        Text('اضغط زر + لإضافة أول تلميذ',
-                            style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-                      ]),
-                    ),
-                  ),
-                );
-              }
-
-              if (students.isEmpty) {
-                return SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.search_off, size: 64, color: colors.textTertiary),
-                        const SizedBox(height: 16),
-                        Text('لا نتائج لـ "$_searchQuery"',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: colors.textPrimary)),
-                        const SizedBox(height: 8),
-                        Text('جرّب كلمة أخرى',
-                            style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-                      ]),
-                    ),
-                  ),
-                );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildStudentCard(students[index], index),
-                    childCount: students.length,
-                  ),
                 ),
-              );
-            },
-          ),
+              ),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -661,7 +964,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
               Icon(icon, size: 18),
               const SizedBox(width: 6),
               Text(label,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13)),
             ]),
           ),
         ),
@@ -702,12 +1006,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
               padding: const EdgeInsets.all(14),
               child: Row(children: [
                 Container(
-                  width: 52, height: 52,
+                  width: 52,
+                  height: 52,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Colors.green.shade400, Colors.green.shade700],
+                      colors: [
+                        Colors.green.shade400,
+                        Colors.green.shade700
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -721,20 +1029,25 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(student.fullName,
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: colors.textPrimary)),
-                    const SizedBox(height: 4),
-                    Text('رقم التلميذ: ${student.id}',
-                        style: TextStyle(color: colors.textTertiary, fontSize: 12)),
-                  ]),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(student.fullName,
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: colors.textPrimary)),
+                        const SizedBox(height: 4),
+                        Text('رقم التلميذ: ${student.id}',
+                            style: TextStyle(
+                                color: colors.textTertiary, fontSize: 12)),
+                      ]),
                 ),
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, color: colors.textSecondary, size: 22),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  icon: Icon(Icons.more_vert,
+                      color: colors.textSecondary, size: 22),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                   color: colors.cardBg,
                   elevation: 4,
                   onSelected: (value) {
@@ -748,7 +1061,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     PopupMenuItem(
                       value: 'edit',
                       child: Row(children: [
-                        const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF4CAF50)),
+                        const Icon(Icons.edit_outlined,
+                            size: 18, color: Color(0xFF4CAF50)),
                         const SizedBox(width: 10),
                         Text('تعديل',
                             style: TextStyle(
@@ -760,7 +1074,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     PopupMenuItem(
                       value: 'delete',
                       child: Row(children: [
-                        const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF5350)),
+                        const Icon(Icons.delete_outline,
+                            size: 18, color: Color(0xFFEF5350)),
                         const SizedBox(width: 10),
                         const Text('حذف',
                             style: TextStyle(
@@ -771,7 +1086,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     ),
                   ],
                 ),
-                Icon(Icons.arrow_forward_ios, size: 14, color: colors.textTertiary),
+                Icon(Icons.arrow_forward_ios,
+                    size: 14, color: colors.textTertiary),
               ]),
             ),
           ),
