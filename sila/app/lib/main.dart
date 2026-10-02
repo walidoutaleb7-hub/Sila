@@ -24,8 +24,10 @@ class SilaApp extends StatelessWidget {
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
           themeMode: themeController.mode,
-          locale: const Locale('ar'),
+          // ✅ ar-DZ (الجزائر) يستخدم الأرقام الغربية 1, 2, 3
+          locale: const Locale('ar', 'DZ'),
           supportedLocales: const [
+            Locale('ar', 'DZ'),
             Locale('ar'),
             Locale('fr'),
             Locale('en'),
