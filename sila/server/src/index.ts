@@ -21,7 +21,7 @@ const asyncHandler = (fn: Function) =>
     Promise.resolve(fn(req, res, next)).catch(next);
 
 // ─────────────────────────────────────
-// 1. فحص حالة الخادم (Health Check)
+// 1. فحص حالة الخادم
 // ─────────────────────────────────────
 app.get('/', (req: Request, res: Response) => {
   res.json({ 
@@ -96,7 +96,6 @@ app.post('/api/classes/:classId/students', asyncHandler(async (req: Request, res
 
   const data = createStudentSchema.parse(req.body);
 
-  // التحقق من وجود القسم
   const existingClass = await prisma.class.findUnique({
     where: { id: classId },
   });
@@ -163,7 +162,6 @@ app.post('/api/attendance', asyncHandler(async (req: Request, res: Response) => 
   const data = attendanceSchema.parse(req.body);
   const attendanceDate = new Date(data.date);
 
-  // حفظ كل السجلات في عملية واحدة
   const results = await prisma.$transaction(
     data.records.map((record) =>
       prisma.attendance.upsert({
@@ -240,6 +238,75 @@ app.get('/api/attendance', asyncHandler(async (req: Request, res: Response) => {
       students: result,
     },
   });
+}));
+
+// ─────────────────────────────────────
+// 7.5. تعديل تلميذ
+// PUT /api/students/:id
+// ─────────────────────────────────────
+const updateStudentSchema = z.object({
+  fullName: z.string().min(2).max(200),
+});
+
+app.put('/api/students/:id', asyncHandler(async (req: Request, res: Response) => {
+  const studentId = parseInt(String(req.params.id));
+
+  if (isNaN(studentId)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
+    });
+  }
+
+  const data = updateStudentSchema.parse(req.body);
+
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+  });
+
+  if (!student) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
+    });
+  }
+
+  const updated = await prisma.student.update({
+    where: { id: studentId },
+    data: { fullName: data.fullName },
+  });
+
+  res.json({ success: true, data: updated });
+}));
+
+// ─────────────────────────────────────
+// 7.6. حذف تلميذ
+// DELETE /api/students/:id
+// ─────────────────────────────────────
+app.delete('/api/students/:id', asyncHandler(async (req: Request, res: Response) => {
+  const studentId = parseInt(String(req.params.id));
+
+  if (isNaN(studentId)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
+    });
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+  });
+
+  if (!student) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
+    });
+  }
+
+  await prisma.student.delete({ where: { id: studentId } });
+
+  res.json({ success: true, data: { deletedId: studentId } });
 }));
 
 // ─────────────────────────────────────
@@ -332,7 +399,6 @@ app.listen(PORT, () => {
   console.log(`✅ خادم صلة يعمل على المنفذ ${PORT}`);
 });
 
-// إغلاق نظيف
 process.on('SIGTERM', async () => {
   await prisma.$disconnect();
   process.exit(0);
