@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/login_screen.dart';
@@ -32,6 +31,9 @@ class SilaApp extends StatelessWidget {
       ]),
       builder: (context, _) {
         return MaterialApp(
+          // ✅ المفتاح السحري: يجبر Flutter على إعادة بناء كل الـ Navigator
+          // عند تغيير حالة الدخول (لحل مشكلة تسجيل الخروج)
+          key: ValueKey('sila_${authService.isLoggedIn}'),
           title: 'SILA',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(fontId: fontController.fontId),
@@ -61,7 +63,6 @@ class SilaApp extends StatelessWidget {
               ),
             );
           },
-          // ✅ التوجيه حسب حالة الدخول
           home: authService.isLoggedIn
               ? const SplashScreen()
               : const LoginScreen(),
