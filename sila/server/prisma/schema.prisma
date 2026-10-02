@@ -23,6 +23,7 @@ model Student {
   id         Int      @id @default(autoincrement())
   fullName   String   @db.VarChar(200)
   classId    Int
+  photoUrl   String?  @db.Text
   createdAt  DateTime @default(now())
 
   class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -67,12 +68,11 @@ model Grade {
   @@map("grades")
 }
 
-// ملاحظة سلوكية أو مذكرة حصة
 model Note {
   id          Int      @id @default(autoincrement())
   classId     Int
-  studentId   Int?     // null = مذكرة حصة عامة، غير null = ملاحظة على تلميذ
-  type        String   @db.VarChar(20) // POSITIVE / NEGATIVE / INFO / JOURNAL
+  studentId   Int?
+  type        String   @db.VarChar(20)
   title       String   @db.VarChar(200)
   content     String   @db.VarChar(2000)
   date        DateTime @db.Date
