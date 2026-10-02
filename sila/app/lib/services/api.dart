@@ -35,7 +35,7 @@ class Student {
   final int id;
   final String fullName;
   final int classId;
-  final String? status; // للحضور: PRESENT / ABSENT / null
+  final String? status; // PRESENT / ABSENT / null
 
   Student({
     required this.id,
@@ -49,6 +49,29 @@ class Student {
       id: json['id'] as int,
       fullName: json['fullName'] as String,
       classId: json['classId'] as int,
+      status: json['status'] as String?,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════
+// نموذج سجل الحضور
+// ═══════════════════════════════════════════
+class AttendanceEntry {
+  final int studentId;
+  final String fullName;
+  final String? status;
+
+  AttendanceEntry({
+    required this.studentId,
+    required this.fullName,
+    this.status,
+  });
+
+  factory AttendanceEntry.fromJson(Map<String, dynamic> json) {
+    return AttendanceEntry(
+      studentId: json['studentId'] as int,
+      fullName: json['fullName'] as String,
       status: json['status'] as String?,
     );
   }
@@ -139,5 +162,73 @@ class ApiService {
       }
     }
     throw Exception('فشل إضافة التلميذ');
+  }
+
+  // ─────────────────────────────────────────
+  // الحضور
+  // ─────────────────────────────────────────
+
+  /// حفظ سجل الحضور ليوم محدد
+  /// [records]: map من studentId → status (PRESENT / ABSENT)
+  static Future<int> saveAttendance({
+    required int classId,
+    required DateTime date,
+    required Map<int, String> records,
+  }) async {
+    final dateStr = _formatDate(date);
+    final recordsList = records.entries
+        .map((e) => {'studentId': e.key, 'status': e.value})
+        .toList();
+
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/api/attendance'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'classId': classId,
+            'date': dateStr,
+            'records': recordsList,
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return body['data']['saved'] as int;
+      }
+    }
+    throw Exception('فشل حفظ الحضور');
+  }
+
+  /// جلب سجل الحضور ليوم محدد
+  static Future<List<AttendanceEntry>> getAttendance({
+    required int classId,
+    required DateTime date,
+  }) async {
+    final dateStr = _formatDate(date);
+    final response = await http
+        .get(Uri.parse(
+            '$_baseUrl/api/attendance?classId=$classId&date=$dateStr'))
+        .timeout(const Duration(seconds: 60));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        final List<dynamic> students = body['data']['students'];
+        return students.map((e) => AttendanceEntry.fromJson(e)).toList();
+      }
+    }
+    throw Exception('فشل جلب سجل الحضور');
+  }
+
+  // ─────────────────────────────────────────
+  // أدوات مساعدة
+  // ─────────────────────────────────────────
+  static String _formatDate(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
   }
 }
