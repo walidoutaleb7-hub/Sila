@@ -30,12 +30,14 @@ class Student {
   final int id;
   final String fullName;
   final int classId;
+  final String? photoUrl; // base64
   final String? status;
 
   Student({
     required this.id,
     required this.fullName,
     required this.classId,
+    this.photoUrl,
     this.status,
   });
 
@@ -43,6 +45,7 @@ class Student {
         id: json['id'] as int,
         fullName: json['fullName'] as String,
         classId: json['classId'] as int,
+        photoUrl: json['photoUrl'] as String?,
         status: json['status'] as String?,
       );
 }
@@ -50,17 +53,20 @@ class Student {
 class AttendanceEntry {
   final int studentId;
   final String fullName;
+  final String? photoUrl;
   final String? status;
 
   AttendanceEntry({
     required this.studentId,
     required this.fullName,
+    this.photoUrl,
     this.status,
   });
 
   factory AttendanceEntry.fromJson(Map<String, dynamic> json) => AttendanceEntry(
         studentId: json['studentId'] as int,
         fullName: json['fullName'] as String,
+        photoUrl: json['photoUrl'] as String?,
         status: json['status'] as String?,
       );
 }
@@ -299,7 +305,7 @@ class StudentFullReport {
 }
 
 // ═══════════════════════════════════════════
-// نموذج جلسة الدرجات (للتعديل)
+// نموذج جلسة الدرجات
 // ═══════════════════════════════════════════
 class SessionGrades {
   final String assessment;
@@ -360,7 +366,7 @@ class SessionRecord {
 // ═══════════════════════════════════════════
 class NoteItem {
   final int id;
-  final String type; // POSITIVE, NEGATIVE, INFO, JOURNAL
+  final String type;
   final String title;
   final String content;
   final DateTime date;
@@ -494,6 +500,35 @@ class ApiService {
   static Future<void> deleteStudent(int studentId) async {
     final response = await http.delete(Uri.parse('$_baseUrl/api/students/$studentId')).timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) throw Exception('فشل حذف التلميذ');
+  }
+
+  /// تحديث صورة التلميذ (base64)
+  static Future<Student> updateStudentPhoto({
+    required int studentId,
+    required String photoBase64,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$_baseUrl/api/students/$studentId/photo'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'photoUrl': photoBase64}),
+    ).timeout(const Duration(seconds: 120));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) return Student.fromJson(body['data']);
+    }
+    throw Exception('فشل تحديث الصورة');
+  }
+
+  /// حذف صورة التلميذ
+  static Future<Student> deleteStudentPhoto(int studentId) async {
+    final response = await http
+        .delete(Uri.parse('$_baseUrl/api/students/$studentId/photo'))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) return Student.fromJson(body['data']);
+    }
+    throw Exception('فشل حذف الصورة');
   }
 
   static Future<StudentHistory> getStudentHistory(int studentId) async {
