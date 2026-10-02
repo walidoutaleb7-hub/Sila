@@ -295,7 +295,7 @@ app.get('/api/classes/:id/stats', asyncHandler(async (req: Request, res: Respons
 }));
 
 // ═══════════════════════════════════════════
-// 7.8. إضافة/تحديث دفعة درجات
+// 7.8. حفظ دفعة درجات
 // ═══════════════════════════════════════════
 const bulkGradeSchema = z.object({
   classId: z.number().int().positive(),
@@ -344,7 +344,7 @@ app.post('/api/grades', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // ═══════════════════════════════════════════
-// 7.9. جلب درجات القسم (ملخص الجلسات)
+// 7.9. جلب درجات القسم (ملخص)
 // ═══════════════════════════════════════════
 app.get('/api/classes/:id/grades', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.params.id));
@@ -371,7 +371,6 @@ app.get('/api/classes/:id/grades', asyncHandler(async (req: Request, res: Respon
         coeff: g.coeff,
         note: g.note,
         count: 0,
-        avg: 0,
         totalScore: 0,
       };
     }
@@ -410,16 +409,8 @@ app.get('/api/grades/session', asyncHandler(async (req: Request, res: Response) 
   const gradeDate = new Date(dateStr);
 
   const grades = await prisma.grade.findMany({
-    where: {
-      classId,
-      assessment,
-      date: gradeDate,
-    },
-    include: {
-      student: {
-        select: { id: true, fullName: true },
-      },
-    },
+    where: { classId, assessment, date: gradeDate },
+    include: { student: { select: { id: true, fullName: true } } },
     orderBy: { student: { fullName: 'asc' } },
   });
 
@@ -481,10 +472,10 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
     ? Math.round((totalWeighted / totalCoeff) * 20 * 100) / 100
     : 0;
 
-  const byAssessment: { [key: string]: { total: number; sum: number; count: number } } = {};
+  const byAssessment: { [key: string]: { sum: number; count: number } } = {};
   for (const g of grades) {
     if (!byAssessment[g.assessment]) {
-      byAssessment[g.assessment] = { total: 0, sum: 0, count: 0 };
+      byAssessment[g.assessment] = { sum: 0, count: 0 };
     }
     byAssessment[g.assessment].sum += (g.score / g.maxScore) * 20;
     byAssessment[g.assessment].count++;
@@ -498,12 +489,8 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
   res.json({
     success: true,
     data: {
-      student: {
-        id: student.id,
-        fullName: student.fullName,
-        classId: student.classId,
-      },
-      average: average,
+      student: { id: student.id, fullName: student.fullName, classId: student.classId },
+      average,
       count: grades.length,
       assessmentAverages,
       records: grades.map(g => ({
@@ -520,7 +507,7 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
 }));
 
 // ═══════════════════════════════════════════
-// 8. جلب سجل حضور تلميذ
+// 7.11. جلب سجل حضور تلميذ
 // ═══════════════════════════════════════════
 app.get('/api/students/:id/attendance', asyncHandler(async (req: Request, res: Response) => {
   const studentId = parseInt(String(req.params.id));
@@ -553,6 +540,136 @@ app.get('/api/students/:id/attendance', asyncHandler(async (req: Request, res: R
       records: attendance.map(a => ({ date: a.date, status: a.status })),
     },
   });
+}));
+
+// ═══════════════════════════════════════════
+// 8. إنشاء ملاحظة
+// POST /api/notes
+// ═══════════════════════════════════════════
+const createNoteSchema = z.object({
+  classId: z.number().int().positive(),
+  studentId: z.number().int().positive().nullable().optional(),
+  type: z.enum(['POSITIVE', 'NEGATIVE', 'INFO', 'JOURNAL']),
+  title: z.string().min(1).max(200),
+  content: z.string().min(1).max(2000),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+app.post('/api/notes', asyncHandler(async (req: Request, res: Response) => {
+  const data = createNoteSchema.parse(req.body);
+  const noteDate = new Date(data.date);
+
+  const note = await prisma.note.create({
+    data: {
+      classId: data.classId,
+      studentId: data.studentId ?? null,
+      type: data.type,
+      title: data.title,
+      content: data.content,
+      date: noteDate,
+    },
+  });
+
+  res.status(201).json({ success: true, data: note });
+}));
+
+// ═══════════════════════════════════════════
+// 8.1. جلب ملاحظات القسم (مذكرات الحصص + كل الملاحظات)
+// GET /api/classes/:id/notes
+// ═══════════════════════════════════════════
+app.get('/api/classes/:id/notes', asyncHandler(async (req: Request, res: Response) => {
+  const classId = parseInt(String(req.params.id));
+  if (isNaN(classId)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
+    });
+  }
+
+  const notes = await prisma.note.findMany({
+    where: { classId },
+    orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+    include: {
+      student: { select: { id: true, fullName: true } },
+    },
+  });
+
+  res.json({
+    success: true,
+    data: {
+      notes: notes.map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        content: n.content,
+        date: n.date,
+        studentId: n.studentId,
+        studentName: n.student?.fullName ?? null,
+      })),
+    },
+  });
+}));
+
+// ═══════════════════════════════════════════
+// 8.2. جلب ملاحظات تلميذ
+// GET /api/students/:id/notes
+// ═══════════════════════════════════════════
+app.get('/api/students/:id/notes', asyncHandler(async (req: Request, res: Response) => {
+  const studentId = parseInt(String(req.params.id));
+  if (isNaN(studentId)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
+    });
+  }
+
+  const notes = await prisma.note.findMany({
+    where: { studentId },
+    orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+  });
+
+  const positive = notes.filter(n => n.type === 'POSITIVE').length;
+  const negative = notes.filter(n => n.type === 'NEGATIVE').length;
+  const info = notes.filter(n => n.type === 'INFO').length;
+
+  res.json({
+    success: true,
+    data: {
+      stats: { positive, negative, info, total: notes.length },
+      notes: notes.map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        content: n.content,
+        date: n.date,
+      })),
+    },
+  });
+}));
+
+// ═══════════════════════════════════════════
+// 8.3. حذف ملاحظة
+// DELETE /api/notes/:id
+// ═══════════════════════════════════════════
+app.delete('/api/notes/:id', asyncHandler(async (req: Request, res: Response) => {
+  const noteId = parseInt(String(req.params.id));
+  if (isNaN(noteId)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_NOTE_ID', message: 'رقم الملاحظة غير صحيح' },
+    });
+  }
+
+  const note = await prisma.note.findUnique({ where: { id: noteId } });
+  if (!note) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'NOTE_NOT_FOUND', message: 'الملاحظة غير موجودة' },
+    });
+  }
+
+  await prisma.note.delete({ where: { id: noteId } });
+  res.json({ success: true, data: { deletedId: noteId } });
 }));
 
 // ═══════════════════════════════════════════
