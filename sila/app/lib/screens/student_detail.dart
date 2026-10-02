@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/api.dart';
@@ -196,6 +197,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // ─── صورة + اسم التلميذ ───
+        _buildStudentHero(),
+        const SizedBox(height: 16),
         Row(children: [
           _buildStatCard('الحضور', '${history.present}', Icons.check_circle, Colors.green),
           const SizedBox(width: 10),
@@ -214,6 +218,80 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               ),
         const SizedBox(height: 40),
       ],
+    );
+  }
+
+  Widget _buildStudentHero() {
+    final colors = context.colors;
+    final hasPhoto = widget.student.photoUrl != null &&
+        widget.student.photoUrl!.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.cardBorder, width: 1),
+      ),
+      child: Row(children: [
+        // الصورة
+        Container(
+          width: 70, height: 70,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colors.cardBorder, width: 2),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: hasPhoto
+                ? Image.memory(
+                    base64Decode(widget.student.photoUrl!),
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, __, ___) => _initialsAvatar(70),
+                  )
+                : _initialsAvatar(70),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(widget.student.fullName,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    color: colors.textPrimary)),
+            const SizedBox(height: 4),
+            Text('رقم التلميذ: ${widget.student.id}',
+                style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _initialsAvatar(double size) {
+    final name = widget.student.fullName;
+    final initials = name.trim().isEmpty
+        ? '?'
+        : name.trim().split(' ').length >= 2
+            ? '${name.trim().split(' ')[0][0]}${name.trim().split(' ')[1][0]}'
+            : name.trim()[0];
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.green.shade400, Colors.green.shade700],
+        ),
+      ),
+      child: Center(
+        child: Text(initials,
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: size * 0.32)),
+      ),
     );
   }
 
@@ -257,9 +335,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
         if (g.count == 0) {
           return ListView(
             padding: const EdgeInsets.all(16),
-            children: const [
-              SizedBox(height: 60),
-            ],
+            children: const [SizedBox(height: 60)],
           );
         }
 
@@ -334,7 +410,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // ─── إحصائيات سريعة ───
             Row(children: [
               _buildStatCard('إيجابية', '${n.positive}', Icons.star_outline, Colors.green),
               const SizedBox(width: 10),
@@ -415,29 +490,19 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
 
   MaterialColor _noteTypeColor(String type) {
     switch (type) {
-      case 'POSITIVE':
-        return Colors.green;
-      case 'NEGATIVE':
-        return Colors.red;
-      case 'INFO':
-        return Colors.blue;
-      case 'JOURNAL':
-      default:
-        return Colors.orange;
+      case 'POSITIVE': return Colors.green;
+      case 'NEGATIVE': return Colors.red;
+      case 'INFO': return Colors.blue;
+      case 'JOURNAL': default: return Colors.orange;
     }
   }
 
   IconData _noteTypeIcon(String type) {
     switch (type) {
-      case 'POSITIVE':
-        return Icons.star_outline;
-      case 'NEGATIVE':
-        return Icons.warning_amber_outlined;
-      case 'INFO':
-        return Icons.info_outline;
-      case 'JOURNAL':
-      default:
-        return Icons.menu_book_outlined;
+      case 'POSITIVE': return Icons.star_outline;
+      case 'NEGATIVE': return Icons.warning_amber_outlined;
+      case 'INFO': return Icons.info_outline;
+      case 'JOURNAL': default: return Icons.menu_book_outlined;
     }
   }
 
