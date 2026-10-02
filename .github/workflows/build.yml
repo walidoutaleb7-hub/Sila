@@ -29,6 +29,12 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Generate Android project structure
+        working-directory: sila/app
+        run: |
+          flutter create --platforms=android --project-name=sila --org=com.sila .
+          rm -rf test
+
       - name: Get dependencies
         working-directory: sila/app
         run: flutter pub get
@@ -42,4 +48,4 @@ jobs:
         with:
           name: sila-app-release
           path: sila/app/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30 
+          retention-days: 30
