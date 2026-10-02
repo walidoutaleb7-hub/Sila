@@ -136,7 +136,6 @@ class _GradesListScreenState extends State<GradesListScreen> {
   }
 
   Widget _buildList(List<GradeSession> sessions) {
-    final colors = context.colors;
     return RefreshIndicator(
       onRefresh: () async => _load(),
       color: Colors.green.shade600,
@@ -151,7 +150,7 @@ class _GradesListScreenState extends State<GradesListScreen> {
   Widget _buildSessionCard(GradeSession s, int index) {
     final colors = context.colors;
     final pct = s.maxScore > 0 ? s.avg / s.maxScore : 0.0;
-    final Color gradeColor = pct >= 0.75
+    final MaterialColor gradeColor = pct >= 0.75
         ? Colors.green
         : pct >= 0.5
             ? Colors.orange
@@ -182,7 +181,6 @@ class _GradesListScreenState extends State<GradesListScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // ─── الرأس ───
             Row(children: [
               Container(
                 padding: const EdgeInsets.all(10),
@@ -223,17 +221,13 @@ class _GradesListScreenState extends State<GradesListScreen> {
                           fontWeight: FontWeight.bold,
                           fontSize: 16)),
                   Text('من ${s.maxScore.toInt()}',
-                      style: TextStyle(
-                          color: gradeColor.shade400,
-                          fontSize: 10)),
+                      style: TextStyle(color: gradeColor.shade400, fontSize: 10)),
                 ]),
               ),
             ]),
             const SizedBox(height: 12),
             Divider(height: 1, color: colors.divider),
             const SizedBox(height: 12),
-
-            // ─── التفاصيل ───
             Row(children: [
               _buildChip(Icons.people_outline, '${s.count} تلميذ', colors),
               const SizedBox(width: 8),
