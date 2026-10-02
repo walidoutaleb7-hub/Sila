@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'settings_screen.dart';
@@ -56,11 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
+            Text(
               'قسم جديد',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
+                color: context.colors.textPrimary,
               ),
             ),
           ],
@@ -594,8 +596,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════
+  // رأس الصفحة
+  // ═══════════════════════════════════════════
   Widget _buildHomeHeader() {
     final colors = context.colors;
+    final firstName = _getFirstName();
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -648,6 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    // شعار "صلة"
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
@@ -678,28 +686,46 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
-                      'المدرسة في جيبك',
+
+                    // ✅ تحية باسم المستخدم
+                    if (firstName.isNotEmpty)
+                      Text(
+                        'أهلاً $firstName',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.3,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 6),
+
+                    // الشعار النصي
+                    Text(
+                      authService.user?.schoolName != null &&
+                              authService.user!.schoolName!.isNotEmpty
+                          ? authService.user!.schoolName!
+                          : 'المدرسة في جيبك',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
+                        color: Colors.white.withOpacity(0.85),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       'والتواصل في يدك',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 11,
                         fontWeight: FontWeight.w400,
                         letterSpacing: 0.3,
                       ),
@@ -714,6 +740,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  String _getFirstName() {
+    final full = authService.user?.fullName ?? '';
+    if (full.trim().isEmpty) return '';
+    return full.trim().split(' ').first;
+  }
+
+  // ═══════════════════════════════════════════
+  // بطاقة القسم
+  // ═══════════════════════════════════════════
   Widget _buildClassCard(SchoolClass c, int index) {
     final colors = context.colors;
 
