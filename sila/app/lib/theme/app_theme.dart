@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+// ═══════════════════════════════════════════
+// ألوان التطبيق المخصصة
+// ═══════════════════════════════════════════
 class AppColors extends ThemeExtension<AppColors> {
   final Color background;
   final Color cardBg;
@@ -84,6 +88,39 @@ class AppColors extends ThemeExtension<AppColors> {
   }
 }
 
+// ═══════════════════════════════════════════
+// دوال مساعدة للخطوط
+// ═══════════════════════════════════════════
+TextTheme _getTextTheme(String fontId, TextTheme base) {
+  try {
+    switch (fontId) {
+      case 'Cairo':
+        return GoogleFonts.cairoTextTheme(base);
+      case 'Tajawal':
+        return GoogleFonts.tajawalTextTheme(base);
+      case 'Almarai':
+        return GoogleFonts.almaraiTextTheme(base);
+      case 'IBM Plex Sans Arabic':
+        return GoogleFonts.ibmPlexSansArabicTextTheme(base);
+      case 'El Messiri':
+        return GoogleFonts.elMessiriTextTheme(base);
+      case 'Readex Pro':
+        return GoogleFonts.readexProTextTheme(base);
+      case 'Noto Kufi Arabic':
+        return GoogleFonts.notoKufiArabicTextTheme(base);
+      case 'Changa':
+        return GoogleFonts.changaTextTheme(base);
+      default:
+        return GoogleFonts.cairoTextTheme(base);
+    }
+  } catch (_) {
+    return GoogleFonts.cairoTextTheme(base);
+  }
+}
+
+// ═══════════════════════════════════════════
+// نظام الثيمات
+// ═══════════════════════════════════════════
 class AppTheme {
   static const _lightColors = AppColors(
     background: Color(0xFFF5F7FA),
@@ -149,22 +186,16 @@ class AppTheme {
       }),
       dayForegroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return Colors.white;
-        if (states.contains(WidgetState.disabled)) {
-          return c.textTertiary;
-        }
+        if (states.contains(WidgetState.disabled)) return c.textTertiary;
         return c.textPrimary;
       }),
-      dayOverlayColor: WidgetStateProperty.all(
-        green.withOpacity(0.15),
-      ),
+      dayOverlayColor: WidgetStateProperty.all(green.withOpacity(0.15)),
       todayForegroundColor: WidgetStateProperty.all(green),
       todayBorder: BorderSide(color: green, width: 1.5),
       yearStyle: TextStyle(color: c.textPrimary, fontSize: 14),
       yearForegroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return Colors.white;
-        if (states.contains(WidgetState.disabled)) {
-          return c.textTertiary;
-        }
+        if (states.contains(WidgetState.disabled)) return c.textTertiary;
         return c.textPrimary;
       }),
       yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -198,17 +229,20 @@ class AppTheme {
     );
   }
 
-  static ThemeData light() {
-    return ThemeData(
+  static ThemeData light({String fontId = 'Cairo'}) {
+    final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: _lightColors.background,
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF2E7D32),
         brightness: Brightness.light,
       ),
+    );
+    return base.copyWith(
+      scaffoldBackgroundColor: _lightColors.background,
       extensions: const [_lightColors],
-      fontFamily: 'Cairo',
+      textTheme: _getTextTheme(fontId, base.textTheme),
+      primaryTextTheme: _getTextTheme(fontId, base.primaryTextTheme),
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: true,
@@ -248,17 +282,20 @@ class AppTheme {
     );
   }
 
-  static ThemeData dark() {
-    return ThemeData(
+  static ThemeData dark({String fontId = 'Cairo'}) {
+    final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: _darkColors.background,
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF66BB6A),
         brightness: Brightness.dark,
       ),
+    );
+    return base.copyWith(
+      scaffoldBackgroundColor: _darkColors.background,
       extensions: const [_darkColors],
-      fontFamily: 'Cairo',
+      textTheme: _getTextTheme(fontId, base.textTheme),
+      primaryTextTheme: _getTextTheme(fontId, base.primaryTextTheme),
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: true,
