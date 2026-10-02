@@ -140,12 +140,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
         SliverAppBar(
-          expandedHeight: 240,
+          // ✅ زيادة الارتفاع لحل التداخل
+          expandedHeight: 310,
           pinned: true,
           backgroundColor: colors.headerGradientMid,
           foregroundColor: Colors.white,
           actions: [
-            // 📩 زر المراسلة
             Padding(
               padding: const EdgeInsets.only(left: 8),
               child: Material(
@@ -155,8 +155,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                   borderRadius: BorderRadius.circular(12),
                   onTap: _goToMessaging,
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -197,10 +196,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                   child: Icon(Icons.person, size: 200,
                       color: Colors.white.withOpacity(0.08)),
                 ),
-                Center(
+                // ✅ الدائرة في المنتصف بدون تداخل
+                Positioned.fill(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 40),
-                    child: _buildProgressRing(history.rate),
+                    padding: const EdgeInsets.only(top: 30, bottom: 70),
+                    child: Center(
+                      child: _buildProgressRing(history.rate),
+                    ),
                   ),
                 ),
               ]),
@@ -313,10 +315,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
         const SizedBox(height: 14),
         Divider(color: colors.divider),
         const SizedBox(height: 10),
-        // معلومات الولي
         Row(children: [
-          Icon(Icons.family_restroom,
-              size: 16, color: colors.textTertiary),
+          Icon(Icons.family_restroom, size: 16, color: colors.textTertiary),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -609,26 +609,26 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
       curve: Curves.easeOutCubic,
       tween: Tween(begin: 0.0, end: rate / 100),
       builder: (context, value, child) => SizedBox(
-        width: 130, height: 130,
+        width: 120, height: 120,
         child: Stack(alignment: Alignment.center, children: [
           CustomPaint(
-            size: const Size(130, 130),
+            size: const Size(120, 120),
             painter: _RingPainter(
               progress: value,
               color: color,
               backgroundColor: Colors.white.withOpacity(0.2),
-              strokeWidth: 10,
+              strokeWidth: 9,
             ),
           ),
           Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text('${(value * 100).round()}%',
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 30,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
             const Text('نسبة الحضور',
-                style: TextStyle(color: Colors.white70, fontSize: 11)),
+                style: TextStyle(color: Colors.white70, fontSize: 10)),
           ]),
         ]),
       ),
