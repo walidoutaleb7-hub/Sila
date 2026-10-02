@@ -4,7 +4,7 @@ import '../theme/app_theme.dart';
 
 class GradesEntryScreen extends StatefulWidget {
   final SchoolClass schoolClass;
-  final GradeSession? editSession; // null = إضافة، غير null = تعديل
+  final GradeSession? editSession;
 
   const GradesEntryScreen({
     super.key,
@@ -42,7 +42,6 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
   @override
   void initState() {
     super.initState();
-    // إذا كنا في وضع التعديل، املأ القيم من الجلسة
     if (_isEditMode) {
       final s = widget.editSession!;
       _selectedAssessment = s.assessment;
@@ -74,7 +73,6 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         _scoreControllers[s.id] = TextEditingController();
       }
 
-      // إذا كنا في وضع التعديل، املأ النقاط الحالية
       if (_isEditMode) {
         try {
           final session = await ApiService.getSessionGrades(
@@ -86,9 +84,7 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
             _scoreControllers[r.studentId]?.text =
                 r.score.toStringAsFixed(r.score % 1 == 0 ? 0 : 2);
           }
-        } catch (_) {
-          // تجاهل — القائمة فارغة
-        }
+        } catch (_) {}
       }
 
       setState(() {
@@ -103,23 +99,14 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
     }
   }
 
+  // ✅ أرقام غربية
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      locale: const Locale('ar'),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.light(
-            primary: Colors.green.shade700,
-            onPrimary: Colors.white,
-            onSurface: context.isDark ? Colors.white : Colors.black,
-          ),
-        ),
-        child: child!,
-      ),
+      locale: const Locale('ar', 'DZ'),
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }
@@ -134,7 +121,9 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
       }
       final val = double.tryParse(text);
       if (val == null || val < 0 || val > _maxScore) {
-        _showSnack('نقطة غير صحيحة لـ ${s.fullName} (0 - ${_maxScore.toInt()})', isError: true);
+        _showSnack(
+            'نقطة غير صحيحة لـ ${s.fullName} (0 - ${_maxScore.toInt()})',
+            isError: true);
         return;
       }
       records[s.id] = val;
@@ -148,7 +137,9 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         maxScore: _maxScore,
         coeff: _coeff,
         date: _selectedDate,
-        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
         records: records,
       );
       if (!mounted) return;
@@ -168,7 +159,8 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
-        Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white),
+        Icon(isError ? Icons.error_outline : Icons.check_circle,
+            color: Colors.white),
         const SizedBox(width: 8),
         Expanded(child: Text(message)),
       ]),
@@ -197,7 +189,8 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
               : _students.isEmpty
                   ? _buildEmpty()
                   : _buildBody(),
-      bottomNavigationBar: _students.isEmpty || _loading ? null : _buildBottomBar(),
+      bottomNavigationBar:
+          _students.isEmpty || _loading ? null : _buildBottomBar(),
     );
   }
 
@@ -220,14 +213,17 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.error_outline, size: 60, color: Colors.red.shade400),
           const SizedBox(height: 16),
-          Text('خطأ: $_error', textAlign: TextAlign.center, style: TextStyle(color: colors.textPrimary)),
+          Text('خطأ: $_error',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textPrimary)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _loadData,
             icon: const Icon(Icons.refresh),
             label: const Text('إعادة المحاولة'),
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white),
           ),
         ]),
       ),
@@ -243,7 +239,10 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
           Icon(Icons.group_off, size: 72, color: colors.textTertiary),
           const SizedBox(height: 16),
           Text('لا يوجد تلاميذ',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary)),
           const SizedBox(height: 8),
           Text('أضف تلاميذاً أولاً',
               style: TextStyle(color: colors.textSecondary, fontSize: 13)),
@@ -261,15 +260,22 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         const SizedBox(height: 20),
         Row(children: [
           Container(
-            width: 4, height: 20,
-            decoration: BoxDecoration(color: Colors.green.shade700, borderRadius: BorderRadius.circular(2)),
+            width: 4,
+            height: 20,
+            decoration: BoxDecoration(
+                color: Colors.green.shade700,
+                borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(width: 10),
           Text('النقاط (${_students.length} تلميذ)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary)),
         ]),
         const SizedBox(height: 12),
-        ..._students.asMap().entries.map((entry) => _buildStudentRow(entry.value, entry.key)),
+        ..._students.asMap().entries
+            .map((entry) => _buildStudentRow(entry.value, entry.key)),
         const SizedBox(height: 40),
       ],
     );
@@ -288,22 +294,29 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         _buildFieldLabel('نوع التقييم', Icons.assignment_outlined),
         const SizedBox(height: 8),
         Wrap(
-          spacing: 8, runSpacing: 8,
+          spacing: 8,
+          runSpacing: 8,
           children: _assessmentTypes.map((t) {
             final selected = _selectedAssessment == t;
             return InkWell(
               borderRadius: BorderRadius.circular(10),
-              onTap: _isEditMode ? null : () => setState(() => _selectedAssessment = t),
+              onTap: _isEditMode
+                  ? null
+                  : () => setState(() => _selectedAssessment = t),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: selected
                       ? Colors.green.shade600
-                      : (context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50),
+                      : (context.isDark
+                          ? const Color(0xFF1B3A1E)
+                          : Colors.green.shade50),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: selected ? Colors.green.shade600 : colors.cardBorder,
+                    color:
+                        selected ? Colors.green.shade600 : colors.cardBorder,
                     width: 1,
                   ),
                 ),
@@ -311,7 +324,9 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
                     style: TextStyle(
                       color: selected
                           ? Colors.white
-                          : (context.isDark ? const Color(0xFF81C784) : Colors.green.shade800),
+                          : (context.isDark
+                              ? const Color(0xFF81C784)
+                              : Colors.green.shade800),
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     )),
@@ -330,16 +345,24 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(children: [
               Icon(Icons.calendar_today_outlined,
-                  size: 18, color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
+                  size: 18,
+                  color: context.isDark
+                      ? const Color(0xFF81C784)
+                      : Colors.green.shade600),
               const SizedBox(width: 10),
               Text('التاريخ',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: colors.textPrimary)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: colors.textPrimary)),
               const Spacer(),
               Text(ApiService.formatDateArabic(_selectedDate),
-                  style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                  style: TextStyle(
+                      color: colors.textSecondary, fontSize: 12)),
               const SizedBox(width: 6),
               if (!_isEditMode)
-                Icon(Icons.arrow_forward_ios, size: 12, color: colors.textTertiary),
+                Icon(Icons.arrow_forward_ios,
+                    size: 12, color: colors.textTertiary),
             ]),
           ),
         ),
@@ -348,43 +371,55 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         const SizedBox(height: 8),
 
         Row(children: [
-          Expanded(child: _buildNumberField('السقف', _maxScore, (v) => setState(() => _maxScore = v))),
+          Expanded(
+              child: _buildNumberField(
+                  'السقف', _maxScore, (v) => setState(() => _maxScore = v))),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(Icons.scale_outlined,
-                    size: 16,
-                    color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
-                const SizedBox(width: 6),
-                Text('المعامل',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
-              ]),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colors.inputFill,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.cardBorder),
-                ),
-                child: Row(children: [
-                  _buildStepBtn(Icons.remove, () {
-                    if (_coeff > 1) setState(() => _coeff--);
-                  }),
-                  Expanded(
-                    child: Center(
-                      child: Text('$_coeff',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Icon(Icons.scale_outlined,
+                        size: 16,
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade600),
+                    const SizedBox(width: 6),
+                    Text('المعامل',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            color: colors.textPrimary)),
+                  ]),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: colors.inputFill,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: colors.cardBorder),
                     ),
+                    child: Row(children: [
+                      _buildStepBtn(Icons.remove, () {
+                        if (_coeff > 1) setState(() => _coeff--);
+                      }),
+                      Expanded(
+                        child: Center(
+                          child: Text('$_coeff',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: colors.textPrimary)),
+                        ),
+                      ),
+                      _buildStepBtn(Icons.add, () {
+                        if (_coeff < 10) setState(() => _coeff++);
+                      }),
+                    ]),
                   ),
-                  _buildStepBtn(Icons.add, () {
-                    if (_coeff < 10) setState(() => _coeff++);
-                  }),
                 ]),
-              ),
-            ]),
           ),
         ]),
         const SizedBox(height: 14),
@@ -399,17 +434,27 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
             hintText: 'ملاحظة (اختياري)',
             hintStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
             prefixIcon: Icon(Icons.notes_outlined,
-                size: 18, color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
+                size: 18,
+                color: context.isDark
+                    ? const Color(0xFF81C784)
+                    : Colors.green.shade600),
             filled: true,
             fillColor: colors.inputFill,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.cardBorder)),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colors.cardBorder)),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                    color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300, width: 1.5)),
+                    color: context.isDark
+                        ? const Color(0xFF4CAF50)
+                        : Colors.green.shade300,
+                    width: 1.5)),
           ),
         ),
       ]),
@@ -428,14 +473,22 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
     );
   }
 
-  Widget _buildNumberField(String label, double value, Function(double) onChange) {
+  Widget _buildNumberField(
+      String label, double value, Function(double) onChange) {
     final colors = context.colors;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Icon(Icons.straighten_outlined,
-            size: 16, color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
+            size: 16,
+            color: context.isDark
+                ? const Color(0xFF81C784)
+                : Colors.green.shade600),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
+        Text(label,
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: colors.textPrimary)),
       ]),
       const SizedBox(height: 6),
       Container(
@@ -449,18 +502,25 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
           InkWell(
             onTap: value > 5 ? () => onChange(value - 5) : null,
             child: Icon(Icons.remove_circle_outline,
-                size: 20, color: value > 5 ? colors.textSecondary : colors.textTertiary),
+                size: 20,
+                color:
+                    value > 5 ? colors.textSecondary : colors.textTertiary),
           ),
           Expanded(
             child: Center(
               child: Text('${value.toInt()}',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: colors.textPrimary)),
             ),
           ),
           InkWell(
             onTap: value < 100 ? () => onChange(value + 5) : null,
             child: Icon(Icons.add_circle_outline,
-                size: 20, color: value < 100 ? colors.textSecondary : colors.textTertiary),
+                size: 20,
+                color:
+                    value < 100 ? colors.textSecondary : colors.textTertiary),
           ),
         ]),
       ),
@@ -470,9 +530,17 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
   Widget _buildFieldLabel(String label, IconData icon) {
     final colors = context.colors;
     return Row(children: [
-      Icon(icon, size: 16, color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade600),
+      Icon(icon,
+          size: 16,
+          color: context.isDark
+              ? const Color(0xFF81C784)
+              : Colors.green.shade600),
       const SizedBox(width: 6),
-      Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: colors.textPrimary)),
+      Text(label,
+          style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              color: colors.textPrimary)),
     ]);
   }
 
@@ -497,9 +565,12 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(children: [
             Container(
-              width: 36, height: 36,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50,
+                color: context.isDark
+                    ? const Color(0xFF1B3A1E)
+                    : Colors.green.shade50,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(
@@ -507,34 +578,53 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade800)),
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade800)),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(student.fullName,
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: colors.textPrimary)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: colors.textPrimary)),
             ),
             SizedBox(
               width: 70,
               child: TextField(
                 controller: _scoreControllers[student.id],
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: colors.textPrimary),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: colors.textPrimary),
                 decoration: InputDecoration(
                   hintText: '/${_maxScore.toInt()}',
-                  hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13, fontWeight: FontWeight.normal),
+                  hintStyle: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.normal),
                   filled: true,
                   fillColor: colors.inputFill,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(
+                      vertical: 10, horizontal: 8),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none),
                   enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: colors.cardBorder)),
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: colors.cardBorder)),
                   focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(
-                          color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300, width: 1.5)),
+                          color: context.isDark
+                              ? const Color(0xFF4CAF50)
+                              : Colors.green.shade300,
+                          width: 1.5)),
                 ),
               ),
             ),
@@ -563,7 +653,11 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
         child: ElevatedButton.icon(
           onPressed: _saving ? null : _save,
           icon: _saving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
               : Icon(_isEditMode ? Icons.save_as : Icons.save, size: 20),
           label: Text(
             _saving
@@ -576,7 +670,8 @@ class _GradesEntryScreenState extends State<GradesEntryScreen> {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 2,
           ),
         ),
