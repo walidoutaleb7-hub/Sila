@@ -20,11 +20,13 @@ model Class {
 }
 
 model Student {
-  id         Int      @id @default(autoincrement())
-  fullName   String   @db.VarChar(200)
-  classId    Int
-  photoUrl   String?  @db.Text
-  createdAt  DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  fullName       String   @db.VarChar(200)
+  classId        Int
+  photoUrl       String?  @db.Text
+  guardianName   String?  @db.VarChar(200)
+  guardianPhone  String?  @db.VarChar(30)
+  createdAt      DateTime @default(now())
 
   class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
   attendance Attendance[]
