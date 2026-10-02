@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
 import 'attendance.dart';
+import 'student_detail.dart';
 
 class StudentsScreen extends StatefulWidget {
   final SchoolClass schoolClass;
@@ -135,6 +136,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
+  void _goToStudentDetail(Student student) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StudentDetailScreen(student: student),
+      ),
+    ).then((_) => _loadStudents());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,7 +222,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
               ),
             ),
             actions: [
-              // زر تسجيل الحضور
               Padding(
                 padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
                 child: Material(
@@ -245,7 +254,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ],
           ),
 
-          // ═══════ شريط معلومات سريع ═══════
+          // ═══════ شريط المعلومات ═══════
           SliverToBoxAdapter(
             child: FutureBuilder<List<Student>>(
               future: _studentsFuture,
@@ -435,7 +444,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildStudentCard(students[index], index),
+                    (context, index) =>
+                        _buildStudentCard(students[index], index),
                     childCount: students.length,
                   ),
                 ),
@@ -485,7 +495,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () {},
+            onTap: () => _goToStudentDetail(student),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
