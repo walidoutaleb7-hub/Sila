@@ -93,13 +93,23 @@ class AttendanceEntry {
 
 class AttendanceRecord {
   final DateTime date;
+  final String period; // MORNING / AFTERNOON
   final String status;
-  AttendanceRecord({required this.date, required this.status});
+
+  AttendanceRecord({
+    required this.date,
+    required this.period,
+    required this.status,
+  });
+
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) =>
       AttendanceRecord(
         date: DateTime.parse(json['date'] as String),
+        period: json['period'] as String? ?? 'MORNING',
         status: json['status'] as String,
       );
+
+  bool get isMorning => period == 'MORNING';
 }
 
 class StudentHistory {
@@ -136,6 +146,82 @@ class StudentHistory {
       records: recs.map((e) => AttendanceRecord.fromJson(e)).toList(),
     );
   }
+}
+
+// ═══════════════════════════════════════════
+// جدول الأسبوع
+// ═══════════════════════════════════════════
+class ScheduleItem {
+  final int id;
+  final int classId;
+  final int dayOfWeek;
+  final String startTime;
+  final String endTime;
+  final String subject;
+  final String? room;
+  final ScheduleClassInfo? classInfo;
+
+  ScheduleItem({
+    required this.id,
+    required this.classId,
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+    required this.subject,
+    this.room,
+    this.classInfo,
+  });
+
+  factory ScheduleItem.fromJson(Map<String, dynamic> json) => ScheduleItem(
+        id: json['id'] as int,
+        classId: json['classId'] as int,
+        dayOfWeek: json['dayOfWeek'] as int,
+        startTime: json['startTime'] as String,
+        endTime: json['endTime'] as String,
+        subject: json['subject'] as String,
+        room: json['room'] as String?,
+        classInfo: json['class'] != null
+            ? ScheduleClassInfo.fromJson(json['class'])
+            : null,
+      );
+
+  String get className => classInfo?.name ?? '—';
+  String get classLevel => classInfo?.level ?? '';
+}
+
+class ScheduleClassInfo {
+  final int id;
+  final String name;
+  final String level;
+
+  ScheduleClassInfo({
+    required this.id,
+    required this.name,
+    required this.level,
+  });
+
+  factory ScheduleClassInfo.fromJson(Map<String, dynamic> json) =>
+      ScheduleClassInfo(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        level: json['level'] as String,
+      );
+}
+
+class CurrentSchedule {
+  final ScheduleItem? current;
+  final ScheduleItem? next;
+
+  CurrentSchedule({this.current, this.next});
+
+  factory CurrentSchedule.fromJson(Map<String, dynamic> json) => CurrentSchedule(
+        current: json['current'] != null
+            ? ScheduleItem.fromJson(json['current'])
+            : null,
+        next: json['next'] != null
+            ? ScheduleItem.fromJson(json['next'])
+            : null,
+      );
 }
 
 // ═══════════════════════════════════════════
@@ -351,9 +437,6 @@ class StudentGrades {
   }
 }
 
-// ═══════════════════════════════════════════
-// التقرير الشامل
-// ═══════════════════════════════════════════
 class StudentFullReport {
   final Student student;
   final int attendanceTotal;
@@ -372,9 +455,6 @@ class StudentFullReport {
   });
 }
 
-// ═══════════════════════════════════════════
-// جلسة الدرجات
-// ═══════════════════════════════════════════
 class SessionGrades {
   final String assessment;
   final DateTime date;
@@ -496,7 +576,6 @@ class StudentNotes {
 class ApiService {
   static const String _baseUrl = AppConfig.apiBaseUrl;
 
-  /// ترويسات مع التوكن
   static Map<String, String> _headers({bool json = true}) {
     final headers = <String, String>{};
     if (json) headers['Content-Type'] = 'application/json';
@@ -707,10 +786,11 @@ class ApiService {
     return result;
   }
 
-  // ───────── الحضور ─────────
+  // ───────── الحضور (مع period) ─────────
   static Future<int> saveAttendance({
     required int classId,
     required DateTime date,
+    required String period,
     required Map<int, String> records,
   }) async {
     final dateStr = _formatDate(date);
@@ -724,6 +804,7 @@ class ApiService {
           body: jsonEncode({
             'classId': classId,
             'date': dateStr,
+            'period': period,
             'records': recordsList,
           }),
         )
@@ -738,12 +819,13 @@ class ApiService {
   static Future<List<AttendanceEntry>> getAttendance({
     required int classId,
     required DateTime date,
+    required String period,
   }) async {
     final dateStr = _formatDate(date);
     final response = await http
         .get(
             Uri.parse(
-                '$_baseUrl/api/attendance?classId=$classId&date=$dateStr'),
+                '$_baseUrl/api/attendance?classId=$classId&date=$dateStr&period=$period'),
             headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
@@ -908,6 +990,90 @@ class ApiService {
     if (response.statusCode != 200) throw Exception('فشل حذف الملاحظة');
   }
 
+  // ───────── الجدول ─────────
+  static Future<List<ScheduleItem>> getSchedule() async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/schedule'),
+            headers: _headers(json: false))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return (body['data'] as List)
+            .map((e) => ScheduleItem.fromJson(e))
+            .toList();
+      }
+    }
+    throw Exception('فشل جلب الجدول');
+  }
+
+  static Future<List<ScheduleItem>> getScheduleDay(int dayOfWeek) async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/schedule/day/$dayOfWeek'),
+            headers: _headers(json: false))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return (body['data'] as List)
+            .map((e) => ScheduleItem.fromJson(e))
+            .toList();
+      }
+    }
+    throw Exception('فشل جلب جدول اليوم');
+  }
+
+  static Future<CurrentSchedule> getCurrentSchedule() async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/schedule/current'),
+            headers: _headers(json: false))
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return CurrentSchedule.fromJson(body['data']);
+      }
+    }
+    throw Exception('فشل جلب الحصة الحالية');
+  }
+
+  static Future<ScheduleItem> createSchedule({
+    required int classId,
+    required int dayOfWeek,
+    required String startTime,
+    required String endTime,
+    required String subject,
+    String? room,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/api/schedule'),
+          headers: _headers(),
+          body: jsonEncode({
+            'classId': classId,
+            'dayOfWeek': dayOfWeek,
+            'startTime': startTime,
+            'endTime': endTime,
+            'subject': subject,
+            'room': room,
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
+    final body = jsonDecode(utf8.decode(response.bodyBytes));
+    if (response.statusCode == 201 && body['success'] == true) {
+      return ScheduleItem.fromJson(body['data']);
+    }
+    throw Exception(body['error']?['message'] ?? 'فشل إضافة الحصة');
+  }
+
+  static Future<void> deleteSchedule(int scheduleId) async {
+    final response = await http
+        .delete(Uri.parse('$_baseUrl/api/schedule/$scheduleId'),
+            headers: _headers(json: false))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode != 200) throw Exception('فشل حذف الحصة');
+  }
+
   // ───────── أدوات ─────────
   static String _formatDate(DateTime d) {
     final y = d.year.toString().padLeft(4, '0');
@@ -926,5 +1092,14 @@ class ApiService {
     final d = DateTime.parse(dateStr);
     const months = ['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
     return '${d.day} ${months[d.month - 1]}';
+  }
+
+  static String dayName(int dayOfWeek) {
+    const days = ['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
+    return days[(dayOfWeek - 1).clamp(0, 6)];
+  }
+
+  static String periodName(String period) {
+    return period == 'MORNING' ? 'صباحاً' : 'مساءً';
   }
 }
