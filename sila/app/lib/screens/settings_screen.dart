@@ -150,68 +150,81 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 30),
 
-              // ═══════ Footer ═══════
+              // ═══════ Footer (بالصورة الحقيقية) ═══════
               Center(
                 child: Column(
                   children: [
+                    // ✅ شعار التطبيق الحقيقي
                     Container(
-                      width: 60,
-                      height: 60,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+                        color: context.isDark
+                            ? const Color(0xFF1B3A1E)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: context.isDark
+                              ? const Color(0xFF2E7D32)
+                              : Colors.green.shade200,
+                          width: 2,
                         ),
-                        borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.green.withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+                            color: Colors.green.withOpacity(0.25),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Text(
-                          'ص',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      padding: const EdgeInsets.all(8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.asset(
+                          'assets/IMG_20261002_165513.jpg',
+                          fit: BoxFit.contain,
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'SILA',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: colors.textPrimary,
+                        letterSpacing: 6,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                            colors: [Color(0xFFFFB300), Color(0xFFFFD54F)]),
+                        borderRadius: BorderRadius.circular(1),
                       ),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'SILA',
+                      'صُنع بحب في الجزائر 🇩🇿',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: colors.textPrimary,
-                        letterSpacing: 4,
+                        color: colors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'صُنع بحب في الجزائر',
+                      'من طرف أوطالب وليد',
                       style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 13,
+                        color: colors.textTertiary,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'من طرف أوطالب وليد 🇩🇿',
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
@@ -220,12 +233,21 @@ class SettingsScreen extends StatelessWidget {
                             ? const Color(0xFF1B3A1E)
                             : Colors.green.shade50,
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: context.isDark
+                              ? const Color(0xFF2E7D32)
+                              : Colors.green.shade100,
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.favorite,
-                              size: 14, color: Colors.red.shade400),
+                          Icon(Icons.verified_outlined,
+                              size: 14,
+                              color: context.isDark
+                                  ? const Color(0xFF81C784)
+                                  : Colors.green.shade700),
                           const SizedBox(width: 6),
                           Text(
                             'الإصدار 1.0.0',
@@ -579,6 +601,7 @@ class SettingsScreen extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(context);
+              // ✅ تسجيل الخروج — main.dart سيتولى التنقل تلقائياً
               await authService.logout();
             },
             icon: const Icon(Icons.logout, size: 18),
@@ -1240,7 +1263,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // ✅ الإصلاح هنا: MaterialColor بدل Color
   Widget _actionTile(
     BuildContext context, {
     required IconData icon,
