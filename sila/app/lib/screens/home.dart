@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import 'settings_screen.dart';
 import 'students.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -231,6 +232,34 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: colors.headerGradientMid,
             foregroundColor: Colors.white,
             actions: [
+              // ⚙️ زر الإعدادات
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Material(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: Icon(
+                        Icons.settings_outlined,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // 🌙 زر الوضع الليلي
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: Material(
@@ -435,7 +464,6 @@ class _HomeScreenState extends State<HomeScreen> {
   // لوحة اليوم
   // ═══════════════════════════════════════════
   Widget _buildTodayPanel(int classCount, int studentsCount) {
-    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Container(
@@ -465,7 +493,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // العنوان
             Row(
               children: [
                 Icon(
@@ -486,8 +513,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: 14),
-
-            // البطاقات
             Row(
               children: [
                 Expanded(
