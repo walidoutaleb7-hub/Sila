@@ -140,7 +140,7 @@ class AppTheme {
         backgroundColor: Color(0xFF1B5E20),
         foregroundColor: Colors.white,
       ),
-      dialogTheme: DialogThemeData(
+      dialogTheme: DialogTheme(
         backgroundColor: _lightColors.cardBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
@@ -169,7 +169,7 @@ class AppTheme {
         backgroundColor: Color(0xFF0D3B14),
         foregroundColor: Colors.white,
       ),
-      dialogTheme: DialogThemeData(
+      dialogTheme: DialogTheme(
         backgroundColor: _darkColors.cardBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(22),
