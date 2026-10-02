@@ -35,6 +35,23 @@ jobs:
           flutter create --platforms=android --project-name=sila --org=com.sila .
           rm -rf test
 
+      - name: Fix compileSdk to 35
+        working-directory: sila/app
+        run: |
+          FILE="android/app/build.gradle"
+          if [ -f "$FILE" ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/g' $FILE
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/g' $FILE
+            sed -i 's/compileSdkVersion 34/compileSdkVersion 35/g' $FILE
+            sed -i 's/compileSdk 34/compileSdk 35/g' $FILE
+            cat $FILE
+          fi
+          FILE2="android/app/build.gradle.kts"
+          if [ -f "$FILE2" ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/g' $FILE2
+            cat $FILE2
+          fi
+
       - name: Add INTERNET permission
         working-directory: sila/app
         run: |
@@ -46,7 +63,7 @@ jobs:
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i 's|android:label="sila"|android:label="SILA"|g' $MANIFEST
-          cat $MANIFEST
+          sed -i 's|android:label="Sila"|android:label="SILA"|g' $MANIFEST
 
       - name: Get dependencies
         working-directory: sila/app
