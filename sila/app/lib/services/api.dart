@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config.dart';
+import 'auth_service.dart';
 
 // ═══════════════════════════════════════════
 // نماذج أساسية
@@ -33,6 +34,7 @@ class Student {
   final String? photoUrl;
   final String? guardianName;
   final String? guardianPhone;
+  final int consecutiveAbsences;
   final String? status;
 
   Student({
@@ -42,6 +44,7 @@ class Student {
     this.photoUrl,
     this.guardianName,
     this.guardianPhone,
+    this.consecutiveAbsences = 0,
     this.status,
   });
 
@@ -52,12 +55,15 @@ class Student {
         photoUrl: json['photoUrl'] as String?,
         guardianName: json['guardianName'] as String?,
         guardianPhone: json['guardianPhone'] as String?,
+        consecutiveAbsences: (json['consecutiveAbsences'] ?? 0) as int,
         status: json['status'] as String?,
       );
 
   bool get hasGuardianInfo =>
       (guardianName?.trim().isNotEmpty ?? false) ||
       (guardianPhone?.trim().isNotEmpty ?? false);
+
+  bool get needsAlert => consecutiveAbsences >= 3;
 }
 
 class AttendanceEntry {
@@ -490,10 +496,21 @@ class StudentNotes {
 class ApiService {
   static const String _baseUrl = AppConfig.apiBaseUrl;
 
+  /// ترويسات مع التوكن
+  static Map<String, String> _headers({bool json = true}) {
+    final headers = <String, String>{};
+    if (json) headers['Content-Type'] = 'application/json';
+    final token = authService.token;
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
   // ───────── الأقسام ─────────
   static Future<List<SchoolClass>> getClasses() async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes'))
+        .get(Uri.parse('$_baseUrl/api/classes'), headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -513,7 +530,7 @@ class ApiService {
     final response = await http
         .post(
           Uri.parse('$_baseUrl/api/classes'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers(),
           body: jsonEncode({'name': name, 'level': level}),
         )
         .timeout(const Duration(seconds: 60));
@@ -532,7 +549,8 @@ class ApiService {
   // ───────── التلاميذ ─────────
   static Future<List<Student>> getStudents(int classId) async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/students'))
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/students'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -552,7 +570,7 @@ class ApiService {
     final response = await http
         .post(
           Uri.parse('$_baseUrl/api/classes/$classId/students'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers(),
           body: jsonEncode({
             'fullName': fullName,
             'guardianName': guardianName,
@@ -576,7 +594,7 @@ class ApiService {
     final response = await http
         .put(
           Uri.parse('$_baseUrl/api/students/$studentId'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers(),
           body: jsonEncode({
             'fullName': fullName,
             'guardianName': guardianName,
@@ -593,7 +611,8 @@ class ApiService {
 
   static Future<void> deleteStudent(int studentId) async {
     final response = await http
-        .delete(Uri.parse('$_baseUrl/api/students/$studentId'))
+        .delete(Uri.parse('$_baseUrl/api/students/$studentId'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) throw Exception('فشل حذف التلميذ');
   }
@@ -605,7 +624,7 @@ class ApiService {
     final response = await http
         .put(
           Uri.parse('$_baseUrl/api/students/$studentId/photo'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers(),
           body: jsonEncode({'photoUrl': photoBase64}),
         )
         .timeout(const Duration(seconds: 120));
@@ -618,7 +637,8 @@ class ApiService {
 
   static Future<Student> deleteStudentPhoto(int studentId) async {
     final response = await http
-        .delete(Uri.parse('$_baseUrl/api/students/$studentId/photo'))
+        .delete(Uri.parse('$_baseUrl/api/students/$studentId/photo'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -629,7 +649,8 @@ class ApiService {
 
   static Future<StudentHistory> getStudentHistory(int studentId) async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/students/$studentId/attendance'))
+        .get(Uri.parse('$_baseUrl/api/students/$studentId/attendance'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -640,7 +661,8 @@ class ApiService {
 
   static Future<ClassStats> getClassStats(int classId) async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/stats'))
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/stats'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -698,7 +720,7 @@ class ApiService {
     final response = await http
         .post(
           Uri.parse('$_baseUrl/api/attendance'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers(),
           body: jsonEncode({
             'classId': classId,
             'date': dateStr,
@@ -719,8 +741,10 @@ class ApiService {
   }) async {
     final dateStr = _formatDate(date);
     final response = await http
-        .get(Uri.parse(
-            '$_baseUrl/api/attendance?classId=$classId&date=$dateStr'))
+        .get(
+            Uri.parse(
+                '$_baseUrl/api/attendance?classId=$classId&date=$dateStr'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -749,7 +773,7 @@ class ApiService {
     final response = await http
         .post(
           Uri.parse('$_baseUrl/api/grades'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers(),
           body: jsonEncode({
             'classId': classId,
             'assessment': assessment,
@@ -770,7 +794,8 @@ class ApiService {
 
   static Future<List<GradeSession>> getClassGrades(int classId) async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/grades'))
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/grades'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -785,7 +810,8 @@ class ApiService {
 
   static Future<StudentGrades> getStudentGrades(int studentId) async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/students/$studentId/grades'))
+        .get(Uri.parse('$_baseUrl/api/students/$studentId/grades'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -806,7 +832,9 @@ class ApiService {
       '&assessment=${Uri.encodeComponent(assessment)}'
       '&date=$dateStr',
     );
-    final response = await http.get(uri).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(uri, headers: _headers(json: false))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return SessionGrades.fromJson(body['data']);
@@ -826,7 +854,7 @@ class ApiService {
     final response = await http
         .post(
           Uri.parse('$_baseUrl/api/notes'),
-          headers: {'Content-Type': 'application/json'},
+          headers: _headers(),
           body: jsonEncode({
             'classId': classId,
             'studentId': studentId,
@@ -846,7 +874,8 @@ class ApiService {
 
   static Future<List<NoteItem>> getClassNotes(int classId) async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/notes'))
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/notes'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -861,7 +890,8 @@ class ApiService {
 
   static Future<StudentNotes> getStudentNotes(int studentId) async {
     final response = await http
-        .get(Uri.parse('$_baseUrl/api/students/$studentId/notes'))
+        .get(Uri.parse('$_baseUrl/api/students/$studentId/notes'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
@@ -872,7 +902,8 @@ class ApiService {
 
   static Future<void> deleteNote(int noteId) async {
     final response = await http
-        .delete(Uri.parse('$_baseUrl/api/notes/$noteId'))
+        .delete(Uri.parse('$_baseUrl/api/notes/$noteId'),
+            headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) throw Exception('فشل حذف الملاحظة');
   }
