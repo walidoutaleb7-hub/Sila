@@ -1,6 +1,9 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/font_controller.dart';
 import 'theme/preferences_controller.dart';
@@ -11,6 +14,7 @@ void main() async {
   await themeController.init();
   await fontController.init();
   await preferencesController.init();
+  await authService.init();
   runApp(const SilaApp());
 }
 
@@ -24,6 +28,7 @@ class SilaApp extends StatelessWidget {
         themeController,
         fontController,
         preferencesController,
+        authService,
       ]),
       builder: (context, _) {
         return MaterialApp(
@@ -45,7 +50,6 @@ class SilaApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           builder: (context, child) {
-            // ✅ تطبيق حجم الخط
             final scale = preferencesController.fontScale;
             return Directionality(
               textDirection: TextDirection.rtl,
@@ -57,7 +61,10 @@ class SilaApp extends StatelessWidget {
               ),
             );
           },
-          home: const SplashScreen(),
+          // ✅ التوجيه حسب حالة الدخول
+          home: authService.isLoggedIn
+              ? const SplashScreen()
+              : const LoginScreen(),
         );
       },
     );
