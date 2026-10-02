@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_controller.dart';
+import '../theme/preferences_controller.dart';
 import '../theme/theme_controller.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -20,11 +22,44 @@ class SettingsScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: AnimatedBuilder(
-        animation: Listenable.merge([themeController, fontController]),
+        animation: Listenable.merge([
+          themeController,
+          fontController,
+          preferencesController,
+        ]),
         builder: (context, _) {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // ═══════ معلومات الأستاذ ═══════
+              _sectionTitle('معلوماتي', Icons.person_outline),
+              const SizedBox(height: 10),
+              _settingsCard(
+                context,
+                children: [
+                  _editableTile(
+                    context,
+                    icon: Icons.badge_outlined,
+                    title: 'اسم الأستاذ',
+                    value: preferencesController.teacherName.isEmpty
+                        ? 'لم يُحدَّد'
+                        : preferencesController.teacherName,
+                    isSet: preferencesController.teacherName.isNotEmpty,
+                    onTap: () => _showTeacherInfoDialog(context),
+                  ),
+                  _divider(context),
+                  _infoTile(
+                    context,
+                    icon: Icons.school_outlined,
+                    title: 'المدرسة',
+                    value: preferencesController.schoolName.isEmpty
+                        ? 'لم تُحدَّد'
+                        : preferencesController.schoolName,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
               // ═══════ المظهر ═══════
               _sectionTitle('المظهر', Icons.palette_outlined),
               const SizedBox(height: 10),
@@ -41,6 +76,8 @@ class SettingsScreen extends StatelessWidget {
                     value: themeController.isDark,
                     onChanged: (_) => themeController.toggle(),
                   ),
+                  _divider(context),
+                  _sliderTile(context),
                 ],
               ),
               const SizedBox(height: 20),
@@ -59,38 +96,60 @@ class SettingsScreen extends StatelessWidget {
               ...kAvailableFonts.map((font) => _fontTile(context, font)),
               const SizedBox(height: 20),
 
-              // ═══════ عن التطبيق ═══════
-              _sectionTitle('عن التطبيق', Icons.info_outline),
+              // ═══════ التطبيق ═══════
+              _sectionTitle('التطبيق', Icons.apps),
               const SizedBox(height: 10),
               _settingsCard(
                 context,
                 children: [
-                  _infoTile(
+                  _actionTile(
                     context,
-                    icon: Icons.apps,
-                    title: 'اسم التطبيق',
-                    value: 'SILA - صلة',
+                    icon: Icons.share_outlined,
+                    title: 'مشاركة التطبيق',
+                    subtitle: 'أرسل التطبيق لأصدقائك',
+                    onTap: () => _shareApp(context),
                   ),
                   _divider(context),
-                  _infoTile(
+                  _actionTile(
                     context,
-                    icon: Icons.tag,
-                    title: 'الإصدار',
-                    value: '1.0.0',
+                    icon: Icons.star_outline,
+                    title: 'تقييم التطبيق',
+                    subtitle: 'ساعدنا بتقييمك على Google Play',
+                    onTap: () => _showRatingDialog(context),
                   ),
                   _divider(context),
-                  _infoTile(
+                  _actionTile(
                     context,
-                    icon: Icons.description_outlined,
-                    title: 'الوصف',
-                    value: 'المدرسة في جيبك، والتواصل في يدك',
+                    icon: Icons.help_outline,
+                    title: 'المساعدة والدعم',
+                    subtitle: 'أسئلة شائعة وطرق التواصل',
+                    onTap: () => _showHelp(context),
                   ),
                   _divider(context),
-                  _infoTile(
+                  _actionTile(
                     context,
-                    icon: Icons.person_outline,
-                    title: 'المطوّر',
-                    value: 'أوطالب وليد',
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'سياسة الخصوصية',
+                    subtitle: 'كيف نحمي بياناتك',
+                    onTap: () => _showPrivacy(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ═══════ بيانات ═══════
+              _sectionTitle('البيانات', Icons.storage_outlined),
+              const SizedBox(height: 10),
+              _settingsCard(
+                context,
+                children: [
+                  _actionTile(
+                    context,
+                    icon: Icons.cleaning_services_outlined,
+                    title: 'مسح البيانات المحلية',
+                    subtitle: 'الإعدادات + الخطوط + معلوماتك',
+                    color: Colors.orange,
+                    onTap: () => _confirmClearData(context),
                   ),
                 ],
               ),
@@ -170,11 +229,8 @@ class SettingsScreen extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.favorite,
-                            size: 14,
-                            color: Colors.red.shade400,
-                          ),
+                          Icon(Icons.favorite,
+                              size: 14, color: Colors.red.shade400),
                           const SizedBox(width: 6),
                           Text(
                             'الإصدار 1.0.0',
@@ -200,6 +256,641 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  // ═══════════════════════════════════════════
+  // حوار معلومات الأستاذ
+  // ═══════════════════════════════════════════
+  void _showTeacherInfoDialog(BuildContext context) {
+    final nameController = TextEditingController(
+        text: preferencesController.teacherName);
+    final schoolController = TextEditingController(
+        text: preferencesController.schoolName);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+        ),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xFF1B3A1E)
+                  : const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.person_outline,
+                color: Color(0xFF4CAF50), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Text('معلوماتي',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 17)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildInput(
+              context,
+              controller: nameController,
+              label: 'اسم الأستاذ',
+              hint: 'مثال: أوطالب وليد',
+              icon: Icons.badge_outlined,
+            ),
+            const SizedBox(height: 16),
+            _buildInput(
+              context,
+              controller: schoolController,
+              label: 'اسم المدرسة',
+              hint: 'مثال: ثانوية الأمير عبد القادر',
+              icon: Icons.school_outlined,
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: context.colors.textSecondary,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+            ),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await preferencesController.setTeacherInfo(
+                name: nameController.text,
+                school: schoolController.text,
+              );
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('تم حفظ المعلومات'),
+                    ]),
+                    backgroundColor: Colors.green.shade700,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('حفظ',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInput(
+    BuildContext context, {
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    final colors = context.colors;
+    return TextField(
+      controller: controller,
+      style: TextStyle(color: colors.textPrimary),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+        labelStyle: TextStyle(
+          color: context.isDark
+              ? const Color(0xFF81C784)
+              : const Color(0xFF2E7D32),
+          fontWeight: FontWeight.w600,
+        ),
+        prefixIcon: Icon(icon,
+            color: context.isDark
+                ? const Color(0xFF81C784)
+                : Colors.green.shade400,
+            size: 20),
+        filled: true,
+        fillColor: colors.inputFill,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: colors.cardBorder)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+                color: context.isDark
+                    ? const Color(0xFF4CAF50)
+                    : Colors.green.shade300,
+                width: 1.5)),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // مشاركة التطبيق
+  // ═══════════════════════════════════════════
+  void _shareApp(BuildContext context) {
+    Share.share(
+      '📚 تطبيق SILA - صلة\n\n'
+      'منصة تواصل مدرسية ذكية\n'
+      'المدرسة في جيبك، والتواصل في يدك\n\n'
+      'حمّل التطبيق الآن!',
+      subject: 'تطبيق صلة - SILA',
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // تقييم التطبيق
+  // ═══════════════════════════════════════════
+  void _showRatingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xFF3A2A0A)
+                  : const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.star_outline,
+                color: Color(0xFFFFB300), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Text('تقييم التطبيق',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 17)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'هل أعجبك التطبيق؟',
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'تقييمك يساعدنا على التحسين ويساعد غيرك على اكتشاف التطبيق.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 13, color: context.colors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                5,
+                (i) => Icon(
+                  Icons.star,
+                  size: 32,
+                  color: Colors.amber.shade400,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.colors.inputFill,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                Icon(Icons.info_outline,
+                    size: 16, color: context.colors.textTertiary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'سيتوفر التقييم عند نشر التطبيق على Google Play',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: context.colors.textTertiary),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('حسناً',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // المساعدة
+  // ═══════════════════════════════════════════
+  void _showHelp(BuildContext context) {
+    final faqs = [
+      {
+        'q': 'كيف أضيف قسماً جديداً؟',
+        'a': 'من الشاشة الرئيسية، اضغط الزر الأخضر "+ قسم جديد" في الأسفل.'
+      },
+      {
+        'q': 'كيف أسجّل حضور التلاميذ؟',
+        'a': 'افتح القسم، ثم اضغط زر "الحضور" في الأعلى. حدّد حالة كل تلميذ ثم اضغط "حفظ".'
+      },
+      {
+        'q': 'كيف أضيف صورة لتلميذ؟',
+        'a': 'من قائمة التلاميذ، اضغط على ⋮ بجانب التلميذ → "تعديل"، ثم اضغط أيقونة الكاميرا.'
+      },
+      {
+        'q': 'كيف أُدخل الدرجات؟',
+        'a': 'افتح القسم، اضغط "الدرجات" في الأعلى، ثم "+ تقييم جديد".'
+      },
+      {
+        'q': 'كيف أنشر مذكرة حصة؟',
+        'a': 'افتح القسم، اضغط "الملاحظات"، ثم "+ ملاحظة جديدة" واختر نوع "مذكرة حصة".'
+      },
+      {
+        'q': 'كيف أُصدّر تقريراً؟',
+        'a': 'افتح القسم، اضغط أيقونة المشاركة في الأعلى، واختر "CSV" أو "تقرير نصي".'
+      },
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xFF1B2A3A)
+                  : const Color(0xFFE3F2FD),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.help_outline,
+                color: Color(0xFF42A5F5), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Text('المساعدة',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 17)),
+        ]),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: faqs.length,
+            separatorBuilder: (_, __) => Divider(
+              color: context.colors.divider,
+              height: 20,
+            ),
+            itemBuilder: (context, i) {
+              final faq = faqs[i];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade600,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text('؟',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(faq['q']!,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13)),
+                    ),
+                  ]),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 28),
+                    child: Text(faq['a']!,
+                        style: TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: context.colors.textSecondary)),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('فهمت',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // سياسة الخصوصية
+  // ═══════════════════════════════════════════
+  void _showPrivacy(BuildContext context) {
+    final items = [
+      {
+        'title': 'حماية البيانات',
+        'content': 'بيانات التلاميذ والدرجات والحضور محفوظة على خادم آمن '
+            'ولا يتم مشاركتها مع أي طرف ثالث.'
+      },
+      {
+        'title': 'لا إعلانات',
+        'content': 'التطبيق لا يحتوي على أي إعلانات ولا يتبع استخدامك '
+            'لأغراض تجارية.'
+      },
+      {
+        'title': 'صور التلاميذ',
+        'content': 'الصور تُرفع فقط بإذن الأستاذ وتُحفظ بشكل مشفر. '
+            'يمكن حذفها في أي وقت.'
+      },
+      {
+        'title': 'التقييم الديني',
+        'content': 'التطبيق محترم للقيم الإسلامية ولا يحتوي على أي محتوى '
+            'مخالف للشريعة.'
+      },
+      {
+        'title': 'حقوقك',
+        'content': 'لك الحق في حذف جميع بياناتك في أي وقت من الإعدادات.'
+      },
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xFF1B3A1E)
+                  : const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.privacy_tip_outlined,
+                color: Color(0xFF4CAF50), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Text('سياسة الخصوصية',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 17)),
+        ]),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => Divider(
+                color: context.colors.divider, height: 20),
+            itemBuilder: (context, i) {
+              final item = items[i];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Icon(Icons.check_circle,
+                        size: 16, color: Colors.green.shade600),
+                    const SizedBox(width: 8),
+                    Text(item['title']!,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
+                  ]),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 24),
+                    child: Text(item['content']!,
+                        style: TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: context.colors.textSecondary)),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('موافق',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // مسح البيانات
+  // ═══════════════════════════════════════════
+  void _confirmClearData(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xFF3A1A1A)
+                  : const Color(0xFFFFEBEE),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.warning_amber_rounded,
+                color: Color(0xFFEF5350), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Text('مسح البيانات',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 17)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'سيتم مسح البيانات التالية:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            const SizedBox(height: 10),
+            _bullet(context, 'معلوماتك (الاسم، المدرسة)'),
+            _bullet(context, 'اختيار الخط وحجمه'),
+            _bullet(context, 'تفضيلات الوضع الليلي'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: context.isDark
+                    ? const Color(0xFF3A2A0A)
+                    : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                Icon(Icons.info_outline,
+                    size: 14, color: Colors.orange.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'بيانات التلاميذ والدرجات والحضور لن تُمسح.',
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.orange.shade800),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: context.colors.textSecondary,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+            ),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await preferencesController.clearAll();
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Row(children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('تم مسح البيانات المحلية'),
+                    ]),
+                    backgroundColor: Colors.green.shade700,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('مسح',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC62828),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bullet(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(children: [
+        Container(
+          width: 5,
+          height: 5,
+          decoration: BoxDecoration(
+            color: context.colors.textSecondary,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(text,
+            style: TextStyle(
+                fontSize: 12, color: context.colors.textSecondary)),
+      ]),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // عناصر الواجهة
+  // ═══════════════════════════════════════════
   Widget _sectionTitle(String title, IconData icon) {
     return Builder(
       builder: (context) {
@@ -286,8 +977,8 @@ class SettingsScreen extends StatelessWidget {
                       color: colors.textPrimary)),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style:
-                      TextStyle(fontSize: 11, color: colors.textTertiary)),
+                  style: TextStyle(
+                      fontSize: 11, color: colors.textTertiary)),
             ],
           ),
         ),
@@ -297,6 +988,71 @@ class SettingsScreen extends StatelessWidget {
           activeColor: Colors.green.shade600,
         ),
       ]),
+    );
+  }
+
+  Widget _sliderTile(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: context.isDark
+                    ? const Color(0xFF1B3A1E)
+                    : Colors.green.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.format_size,
+                  size: 18, color: Colors.green.shade600),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('حجم الخط',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: colors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(preferencesController.fontScaleName,
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.green.shade600,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          Row(children: [
+            const Text('أ', style: TextStyle(fontSize: 12)),
+            Expanded(
+              child: Slider(
+                value: preferencesController.fontScale,
+                min: 0.85,
+                max: 1.3,
+                divisions: 3,
+                activeColor: Colors.green.shade600,
+                inactiveColor: colors.cardBorder,
+                label: preferencesController.fontScaleName,
+                onChanged: (v) {
+                  preferencesController.setFontScale(v);
+                },
+              ),
+            ),
+            const Text('أ',
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
+          ]),
+        ],
+      ),
     );
   }
 
@@ -315,9 +1071,7 @@ class SettingsScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () {
-            fontController.setFont(font.id);
-          },
+          onTap: () => fontController.setFont(font.id),
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -334,22 +1088,16 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      font.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: colors.textPrimary,
-                      ),
-                    ),
+                    Text(font.name,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: colors.textPrimary)),
                     const SizedBox(height: 4),
-                    Text(
-                      font.sample,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colors.textSecondary,
-                      ),
-                    ),
+                    Text(font.sample,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: colors.textSecondary)),
                   ],
                 ),
               ),
@@ -396,8 +1144,8 @@ class SettingsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style:
-                      TextStyle(fontSize: 12, color: colors.textTertiary)),
+                  style: TextStyle(
+                      fontSize: 12, color: colors.textTertiary)),
               const SizedBox(height: 3),
               Text(value,
                   style: TextStyle(
@@ -408,6 +1156,113 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+
+  Widget _editableTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String value,
+    required bool isSet,
+    required VoidCallback onTap,
+  }) {
+    final colors = context.colors;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: context.isDark
+                    ? const Color(0xFF1B3A1E)
+                    : Colors.green.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: Colors.green.shade600),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 12, color: colors.textTertiary)),
+                  const SizedBox(height: 3),
+                  Text(value,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: isSet
+                              ? colors.textPrimary
+                              : colors.textTertiary)),
+                ],
+              ),
+            ),
+            Icon(Icons.edit_outlined,
+                size: 16, color: colors.textTertiary),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _actionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final colors = context.colors;
+    final c = color ?? Colors.green;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: context.isDark
+                    ? c.withOpacity(0.15)
+                    : c.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: c.shade600),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: colors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontSize: 11, color: colors.textTertiary)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios,
+                size: 14, color: colors.textTertiary),
+          ]),
+        ),
+      ),
     );
   }
 }
