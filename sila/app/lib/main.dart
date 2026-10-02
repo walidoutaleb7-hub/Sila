@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'screens/home.dart';
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
@@ -19,7 +19,7 @@ class SilaApp extends StatelessWidget {
       animation: themeController,
       builder: (context, _) {
         return MaterialApp(
-          title: 'صلة',
+          title: 'SILA',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           darkTheme: AppTheme.dark(),
@@ -41,7 +41,7 @@ class SilaApp extends StatelessWidget {
               child: child!,
             );
           },
-          home: const HomeScreen(),
+          home: const SplashScreen(),
         );
       },
     );
