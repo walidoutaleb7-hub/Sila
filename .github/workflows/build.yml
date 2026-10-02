@@ -35,6 +35,13 @@ jobs:
           flutter create --platforms=android --project-name=sila --org=com.sila .
           rm -rf test
 
+      - name: Add INTERNET permission to AndroidManifest
+        working-directory: sila/app
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' $MANIFEST
+          cat $MANIFEST
+
       - name: Get dependencies
         working-directory: sila/app
         run: flutter pub get
