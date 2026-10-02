@@ -7,18 +7,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ═══════════════════════════════════════════
+// المستخدم (كل حساب معزول)
+// ═══════════════════════════════════════════
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique @db.VarChar(150)
+  passwordHash String   @db.VarChar(200)
+  fullName     String   @db.VarChar(200)
+  schoolName   String?  @db.VarChar(200)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classes      Class[]
+
+  @@map("users")
+}
+
+// ═══════════════════════════════════════════
+// القسم (مرتبط بمستخدم)
+// ═══════════════════════════════════════════
 model Class {
   id        Int      @id @default(autoincrement())
   name      String   @db.VarChar(50)
   level     String   @db.VarChar(20)
+  userId    String
   createdAt DateTime @default(now())
 
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   students Student[]
   notes    Note[]
 
+  @@index([userId])
   @@map("classes")
 }
 
+// ═══════════════════════════════════════════
+// التلميذ
+// ═══════════════════════════════════════════
 model Student {
   id             Int      @id @default(autoincrement())
   fullName       String   @db.VarChar(200)
@@ -37,6 +63,9 @@ model Student {
   @@map("students")
 }
 
+// ═══════════════════════════════════════════
+// الحضور
+// ═══════════════════════════════════════════
 model Attendance {
   id        Int      @id @default(autoincrement())
   studentId Int
@@ -51,6 +80,9 @@ model Attendance {
   @@map("attendance")
 }
 
+// ═══════════════════════════════════════════
+// الدرجات
+// ═══════════════════════════════════════════
 model Grade {
   id          Int      @id @default(autoincrement())
   studentId   Int
@@ -70,6 +102,9 @@ model Grade {
   @@map("grades")
 }
 
+// ═══════════════════════════════════════════
+// الملاحظات
+// ═══════════════════════════════════════════
 model Note {
   id          Int      @id @default(autoincrement())
   classId     Int
