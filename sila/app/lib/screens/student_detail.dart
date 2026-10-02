@@ -11,18 +11,29 @@ class StudentDetailScreen extends StatefulWidget {
   State<StudentDetailScreen> createState() => _StudentDetailScreenState();
 }
 
-class _StudentDetailScreenState extends State<StudentDetailScreen> {
+class _StudentDetailScreenState extends State<StudentDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late Future<StudentHistory> _historyFuture;
+  late Future<StudentGrades> _gradesFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadAll();
   }
 
-  void _loadHistory() {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _loadAll() {
     setState(() {
       _historyFuture = ApiService.getStudentHistory(widget.student.id);
+      _gradesFuture = ApiService.getStudentGrades(widget.student.id);
     });
   }
 
@@ -94,7 +105,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                   style: TextStyle(color: colors.textSecondary, fontSize: 13)),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: _loadHistory,
+                onPressed: _loadAll,
                 icon: const Icon(Icons.refresh),
                 label: const Text('إعادة المحاولة'),
                 style: ElevatedButton.styleFrom(
@@ -113,15 +124,16 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   Widget _buildContent(StudentHistory history) {
     final colors = context.colors;
-    return CustomScrollView(
-      slivers: [
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
+        // ─── الرأس ───
         SliverAppBar(
-          expandedHeight: 220,
+          expandedHeight: 240,
           pinned: true,
           backgroundColor: colors.headerGradientMid,
           foregroundColor: Colors.white,
           flexibleSpace: FlexibleSpaceBar(
-            titlePadding: const EdgeInsets.only(left: 56, right: 16, bottom: 16),
+            titlePadding: const EdgeInsets.only(left: 56, right: 16, bottom: 60),
             title: Text(history.student.fullName,
                 style: const TextStyle(
                     fontWeight: FontWeight.bold,
@@ -150,64 +162,328 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ]),
             ),
           ),
-        ),
-
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              _buildStatCard('الحضور', '${history.present}',
-                  Icons.check_circle, Colors.green),
-              const SizedBox(width: 10),
-              _buildStatCard('الغياب', '${history.absent}',
-                  Icons.cancel, Colors.red),
-              const SizedBox(width: 10),
-              _buildStatCard('المجموع', '${history.total}',
-                  Icons.event, Colors.blue),
-            ]),
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: Colors.white,
+            indicatorWeight: 3,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            tabs: const [
+              Tab(icon: Icon(Icons.event_available, size: 18), text: 'الحضور'),
+              Tab(icon: Icon(Icons.grade_outlined, size: 18), text: 'الدرجات'),
+            ],
           ),
         ),
+      ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildAttendanceTab(history),
+          _buildGradesTab(),
+        ],
+      ),
+    );
+  }
 
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: Row(children: [
-              Container(
-                width: 4, height: 20,
-                decoration: BoxDecoration(
-                  color: Colors.green.shade700,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text('سجل الحضور',
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: colors.textPrimary)),
-              const Spacer(),
-              Text('${history.records.length} يوم',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-            ]),
-          ),
-        ),
-
+  // ═══════════════════════════════════════════
+  // تبويب الحضور
+  // ═══════════════════════════════════════════
+  Widget _buildAttendanceTab(StudentHistory history) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(children: [
+          _buildStatCard('الحضور', '${history.present}',
+              Icons.check_circle, Colors.green),
+          const SizedBox(width: 10),
+          _buildStatCard('الغياب', '${history.absent}',
+              Icons.cancel, Colors.red),
+          const SizedBox(width: 10),
+          _buildStatCard('المجموع', '${history.total}',
+              Icons.event, Colors.blue),
+        ]),
+        const SizedBox(height: 20),
+        _buildSectionTitle('سجل الحضور', '${history.records.length} يوم'),
+        const SizedBox(height: 12),
         if (history.records.isEmpty)
-          SliverToBoxAdapter(child: _buildEmptyHistory())
+          _buildEmptyBox('لا يوجد سجل حضور بعد', Icons.event_busy)
         else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) => _buildRecordTile(history.records[index], index),
-                childCount: history.records.length,
+          ...history.records.asMap().entries.map(
+                (e) => _buildAttendanceTile(e.value, e.key),
               ),
-            ),
-          ),
+        const SizedBox(height: 40),
       ],
     );
   }
 
+  // ═══════════════════════════════════════════
+  // تبويب الدرجات
+  // ═══════════════════════════════════════════
+  Widget _buildGradesTab() {
+    final colors = context.colors;
+    return FutureBuilder<StudentGrades>(
+      future: _gradesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(color: Colors.green.shade600),
+          );
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+                const SizedBox(height: 12),
+                Text('${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => setState(() {
+                    _gradesFuture = ApiService.getStudentGrades(widget.student.id);
+                  }),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة المحاولة'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
+                ),
+              ]),
+            ),
+          );
+        }
+
+        final g = snapshot.data!;
+        if (g.count == 0) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const SizedBox(height: 60),
+              _buildEmptyBox('لا توجد درجات مسجّلة بعد', Icons.grade_outlined),
+            ],
+          );
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // ─── المعدل العام ───
+            _buildAverageCard(g.average),
+            const SizedBox(height: 20),
+
+            // ─── معدلات حسب التقييم ───
+            if (g.assessmentAverages.isNotEmpty) ...[
+              _buildSectionTitle('حسب نوع التقييم', '${g.assessmentAverages.length} نوع'),
+              const SizedBox(height: 12),
+              ...g.assessmentAverages.map((a) => _buildAssessmentAvgTile(a)),
+              const SizedBox(height: 20),
+            ],
+
+            // ─── كل النقاط ───
+            _buildSectionTitle('كل النقاط', '${g.count} نقطة'),
+            const SizedBox(height: 12),
+            ...g.records.asMap().entries.map(
+                  (e) => _buildGradeTile(e.value, e.key),
+                ),
+            const SizedBox(height: 40),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAverageCard(double average) {
+    final color = average >= 15
+        ? Colors.green
+        : average >= 10
+            ? Colors.orange
+            : Colors.red;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [color.shade700, color.shade400],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('المعدل العام',
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+              Text(average.toStringAsFixed(2),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(width: 4),
+              Text('/ 20',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.8), fontSize: 16)),
+            ]),
+          ]),
+        ),
+        Container(
+          width: 80, height: 80,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+          ),
+          child: Center(
+            child: Icon(
+              average >= 15
+                  ? Icons.emoji_events
+                  : average >= 10
+                      ? Icons.thumb_up
+                      : Icons.warning_amber_rounded,
+              color: Colors.white,
+              size: 40,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildAssessmentAvgTile(AssessmentAverage a) {
+    final colors = context.colors;
+    final pct = a.avg / 20;
+    final color = pct >= 0.75
+        ? Colors.green
+        : pct >= 0.5
+            ? Colors.orange
+            : Colors.red;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.cardBorder),
+      ),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: context.isDark ? color.shade900.withOpacity(0.4) : color.shade50,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(Icons.assignment_outlined, color: color.shade400, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(a.assessment,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: colors.textPrimary)),
+            const SizedBox(height: 2),
+            Text('${a.count} نقطة',
+                style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+          ]),
+        ),
+        Text(a.avg.toStringAsFixed(2),
+            style: TextStyle(
+                color: color.shade400,
+                fontWeight: FontWeight.bold,
+                fontSize: 18)),
+        const SizedBox(width: 4),
+        Text('/ 20', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+      ]),
+    );
+  }
+
+  Widget _buildGradeTile(StudentGrade g, int index) {
+    final colors = context.colors;
+    final pct = g.score / g.maxScore;
+    final color = pct >= 0.75
+        ? Colors.green
+        : pct >= 0.5
+            ? Colors.orange
+            : Colors.red;
+
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 250 + (index * 30)),
+      tween: Tween(begin: 0.0, end: 1.0),
+      curve: Curves.easeOut,
+      builder: (context, value, child) => Transform.translate(
+        offset: Offset(20 * (1 - value), 0),
+        child: Opacity(opacity: value, child: child),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          color: colors.cardBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border(right: BorderSide(color: color.shade400, width: 4)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: context.isDark ? color.shade900.withOpacity(0.4) : color.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(g.score.toStringAsFixed(g.score % 1 == 0 ? 0 : 1),
+                    style: TextStyle(
+                        color: color.shade400,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(g.assessment,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: colors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(
+                  '${ApiService.formatDateArabic(g.date)} • معامل ${g.coeff}',
+                  style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                ),
+              ]),
+            ),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text('/ ${g.maxScore.toInt()}',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+              if (g.note != null && g.note!.isNotEmpty)
+                Icon(Icons.note_outlined, size: 14, color: colors.textTertiary),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // عناصر مساعدة
+  // ═══════════════════════════════════════════
   Widget _buildProgressRing(int rate) {
     final color = rate >= 75
         ? Colors.green
@@ -255,21 +531,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           color: colors.cardBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: colors.cardBorder, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(context.isDark ? 0.3 : 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: context.isDark
-                  ? color.shade900.withOpacity(0.4)
-                  : color.shade50,
+              color: context.isDark ? color.shade900.withOpacity(0.4) : color.shade50,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color.shade400, size: 20),
@@ -286,26 +553,42 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     );
   }
 
-  Widget _buildEmptyHistory() {
+  Widget _buildSectionTitle(String title, String? trailing) {
+    final colors = context.colors;
+    return Row(children: [
+      Container(
+        width: 4, height: 20,
+        decoration: BoxDecoration(
+          color: Colors.green.shade700,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Text(title,
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+      const Spacer(),
+      if (trailing != null)
+        Text(trailing, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+    ]);
+  }
+
+  Widget _buildEmptyBox(String text, IconData icon) {
     final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Column(children: [
-        Icon(Icons.event_busy, size: 72, color: colors.textTertiary),
+        Icon(icon, size: 72, color: colors.textTertiary),
         const SizedBox(height: 16),
-        Text('لا يوجد سجل حضور بعد',
+        Text(text,
+            textAlign: TextAlign.center,
             style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: colors.textPrimary)),
-        const SizedBox(height: 8),
-        Text('ابدأ بتسجيل الحضور من شاشة القسم',
-            style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary)),
       ]),
     );
   }
 
-  Widget _buildRecordTile(AttendanceRecord record, int index) {
+  Widget _buildAttendanceTile(AttendanceRecord record, int index) {
     final colors = context.colors;
     final isPresent = record.status == 'PRESENT';
     final color = isPresent ? Colors.green : Colors.red;
@@ -323,9 +606,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         decoration: BoxDecoration(
           color: colors.cardBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border(
-            right: BorderSide(color: color.shade400, width: 4),
-          ),
+          border: Border(right: BorderSide(color: color.shade400, width: 4)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -333,9 +614,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             Container(
               width: 42, height: 42,
               decoration: BoxDecoration(
-                color: context.isDark
-                    ? color.shade900.withOpacity(0.4)
-                    : color.shade50,
+                color: context.isDark ? color.shade900.withOpacity(0.4) : color.shade50,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(isPresent ? Icons.check : Icons.close,
@@ -352,9 +631,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: context.isDark
-                    ? color.shade900.withOpacity(0.4)
-                    : color.shade50,
+                color: context.isDark ? color.shade900.withOpacity(0.4) : color.shade50,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(isPresent ? 'حاضر' : 'غائب',
