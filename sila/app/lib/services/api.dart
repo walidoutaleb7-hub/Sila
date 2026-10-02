@@ -78,7 +78,7 @@ class AttendanceEntry {
 }
 
 // ═══════════════════════════════════════════
-// نموذج سجل تلميذ واحد
+// نموذج سجل تلميذ
 // ═══════════════════════════════════════════
 class StudentHistory {
   final Student student;
@@ -216,6 +216,39 @@ class ApiService {
       }
     }
     throw Exception('فشل إضافة التلميذ');
+  }
+
+  /// تعديل اسم تلميذ
+  static Future<Student> updateStudent({
+    required int studentId,
+    required String fullName,
+  }) async {
+    final response = await http
+        .put(
+          Uri.parse('$_baseUrl/api/students/$studentId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'fullName': fullName}),
+        )
+        .timeout(const Duration(seconds: 60));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return Student.fromJson(body['data']);
+      }
+    }
+    throw Exception('فشل تعديل التلميذ');
+  }
+
+  /// حذف تلميذ
+  static Future<void> deleteStudent(int studentId) async {
+    final response = await http
+        .delete(Uri.parse('$_baseUrl/api/students/$studentId'))
+        .timeout(const Duration(seconds: 60));
+
+    if (response.statusCode != 200) {
+      throw Exception('فشل حذف التلميذ');
+    }
   }
 
   /// جلب سجل حضور تلميذ
