@@ -711,8 +711,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
         children: [
           CustomScrollView(
             slivers: [
+              // ═══════ AppBar نظيف (بدون تداخل) ═══════
               SliverAppBar(
-                expandedHeight: 150,
+                expandedHeight: 130,
                 pinned: true,
                 backgroundColor: colors.headerGradientMid,
                 foregroundColor: Colors.white,
@@ -763,40 +764,118 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   ),
                 ),
                 actions: [
-                  _buildIconButton(
-                    icon: Icons.ios_share,
-                    onTap: _exporting ? null : _showExportOptions,
-                  ),
-                  _buildTextButton(
-                    icon: Icons.sticky_note_2_outlined,
-                    label: 'الملاحظات',
-                    onTap: _goToNotes,
-                  ),
-                  _buildTextButton(
-                    icon: Icons.grade_outlined,
-                    label: 'الدرجات',
-                    onTap: _goToGrades,
-                  ),
-                  _buildIconButton(
-                    icon: Icons.insights,
-                    onTap: _goToStats,
-                  ),
-                  _buildTextButton(
-                    icon: Icons.fact_check,
-                    label: 'الحضور',
-                    onTap: _goToAttendance,
+                  // زر واحد فقط: "المزيد"
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Material(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert,
+                            color: Colors.white, size: 22),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                        color: colors.cardBg,
+                        elevation: 4,
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'attendance':
+                              _goToAttendance();
+                              break;
+                            case 'grades':
+                              _goToGrades();
+                              break;
+                            case 'notes':
+                              _goToNotes();
+                              break;
+                            case 'stats':
+                              _goToStats();
+                              break;
+                            case 'export':
+                              _showExportOptions();
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          _popupItem('attendance', Icons.fact_check,
+                              'تسجيل الحضور', Colors.green, colors),
+                          _popupItem('grades', Icons.grade_outlined,
+                              'الدرجات', Colors.orange, colors),
+                          _popupItem('notes', Icons.sticky_note_2_outlined,
+                              'الملاحظات', Colors.blue, colors),
+                          _popupItem('stats', Icons.insights,
+                              'الإحصائيات', Colors.purple, colors),
+                          const PopupMenuDivider(),
+                          _popupItem('export', Icons.ios_share,
+                              'تصدير التقرير', Colors.teal, colors),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
 
+              // ═══════ شريط الأزرار السريعة (قابل للتمرير) ═══════
+              SliverToBoxAdapter(
+                child: Container(
+                  color: colors.background,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(children: [
+                      _quickAction(
+                        icon: Icons.fact_check,
+                        label: 'الحضور',
+                        color: Colors.green,
+                        onTap: _goToAttendance,
+                      ),
+                      const SizedBox(width: 8),
+                      _quickAction(
+                        icon: Icons.grade_outlined,
+                        label: 'الدرجات',
+                        color: Colors.orange,
+                        onTap: _goToGrades,
+                      ),
+                      const SizedBox(width: 8),
+                      _quickAction(
+                        icon: Icons.sticky_note_2_outlined,
+                        label: 'الملاحظات',
+                        color: Colors.blue,
+                        onTap: _goToNotes,
+                      ),
+                      const SizedBox(width: 8),
+                      _quickAction(
+                        icon: Icons.insights,
+                        label: 'الإحصائيات',
+                        color: Colors.purple,
+                        onTap: _goToStats,
+                      ),
+                      const SizedBox(width: 8),
+                      _quickAction(
+                        icon: Icons.ios_share,
+                        label: 'تصدير',
+                        color: Colors.teal,
+                        onTap: _exporting ? null : _showExportOptions,
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+
+              // ═══════ شريط العدد + البحث ═══════
               SliverToBoxAdapter(
                 child: FutureBuilder<List<Student>>(
                   future: _studentsFuture,
                   builder: (context, snapshot) {
                     final count = snapshot.data?.length ?? 0;
                     if (count == 0) return const SizedBox.shrink();
+                    final alertsCount = (snapshot.data ?? [])
+                        .where((s) => s.needsAlert)
+                        .length;
+
                     return Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                       child: Column(children: [
                         Row(children: [
                           Container(
@@ -816,6 +895,30 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                       fontSize: 13)),
                             ]),
                           ),
+                          if (alertsCount > 0) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: context.isDark
+                                    ? const Color(0xFF3A1A1A)
+                                    : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: Colors.red.shade200, width: 1),
+                              ),
+                              child: Row(children: [
+                                Icon(Icons.warning_amber_rounded,
+                                    size: 14, color: Colors.red.shade600),
+                                const SizedBox(width: 4),
+                                Text('$alertsCount تنبيه',
+                                    style: TextStyle(
+                                        color: Colors.red.shade600,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12)),
+                              ]),
+                            ),
+                          ],
                           const Spacer(),
                           Material(
                             color: _isSearching
@@ -886,6 +989,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
               ),
 
+              // ═══════ القائمة ═══════
               FutureBuilder<List<Student>>(
                 future: _studentsFuture,
                 builder: (context, snapshot) {
@@ -1054,53 +1158,91 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  Widget _buildIconButton({required IconData icon, required VoidCallback? onTap}) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, top: 8, bottom: 8),
-      child: Material(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Icon(icon, size: 20),
-          ),
-        ),
-      ),
+  // ═══════════════════════════════════════════
+  // عنصر قائمة منبثقة
+  // ═══════════════════════════════════════════
+  PopupMenuItem<String> _popupItem(
+    String value,
+    IconData icon,
+    String label,
+    MaterialColor color,
+    AppColors colors,
+  ) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(children: [
+        Icon(icon, size: 18, color: color.shade600),
+        const SizedBox(width: 12),
+        Text(label,
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary)),
+      ]),
     );
   }
 
-  Widget _buildTextButton({
+  // ═══════════════════════════════════════════
+  // زر سريع في الشريط
+  // ═══════════════════════════════════════════
+  Widget _quickAction({
     required IconData icon,
     required String label,
-    required VoidCallback onTap,
+    required MaterialColor color,
+    required VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, top: 8, bottom: 8),
-      child: Material(
-        color: Colors.white.withOpacity(0.2),
+    final colors = context.colors;
+    return Material(
+      color: context.isDark
+          ? color.shade900.withOpacity(0.3)
+          : color.shade50,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: 16),
-              const SizedBox(width: 4),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-            ]),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: context.isDark
+                  ? color.shade900.withOpacity(0.6)
+                  : color.shade100,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon,
+                  size: 16,
+                  color: context.isDark ? color.shade300 : color.shade700),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: context.isDark ? color.shade300 : color.shade800,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  // ═══════════════════════════════════════════
+  // بطاقة التلميذ
+  // ═══════════════════════════════════════════
   Widget _buildStudentCard(Student student, int index) {
     final colors = context.colors;
     final hasGuardianPhone = student.guardianPhone?.trim().isNotEmpty ?? false;
+    final needsAlert = student.needsAlert;
+    final alertColor = student.consecutiveAbsences >= 5
+        ? Colors.red
+        : Colors.orange;
 
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 300 + (index * 50)),
@@ -1115,13 +1257,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
         decoration: BoxDecoration(
           color: colors.cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.cardBorder, width: 1),
+          border: Border.all(
+            color: needsAlert ? alertColor.shade300 : colors.cardBorder,
+            width: needsAlert ? 1.5 : 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(context.isDark ? 0.3 : 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
+            if (needsAlert)
+              BoxShadow(
+                color: alertColor.withOpacity(0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
           ],
         ),
         child: Material(
@@ -1131,89 +1282,163 @@ class _StudentsScreenState extends State<StudentsScreen> {
             onTap: () => _goToStudentDetail(student),
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Row(children: [
-                StudentAvatar(
-                  studentId: student.id,
-                  fullName: student.fullName,
-                  photoBase64: student.photoUrl,
-                  size: 52,
-                  borderRadius: 14,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(student.fullName,
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: colors.textPrimary)),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      Icon(Icons.badge_outlined,
-                          size: 12, color: colors.textTertiary),
-                      const SizedBox(width: 3),
-                      Text('${student.id}',
-                          style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-                      if (hasGuardianPhone) ...[
-                        const SizedBox(width: 10),
-                        Icon(Icons.phone_iphone,
-                            size: 12,
-                            color: context.isDark
-                                ? const Color(0xFF81C784)
-                                : Colors.green.shade600),
-                        const SizedBox(width: 3),
-                        Text('ولي',
-                            style: TextStyle(
-                                color: context.isDark
-                                    ? const Color(0xFF81C784)
-                                    : Colors.green.shade600,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600)),
+              child: Column(
+                children: [
+                  Row(children: [
+                    // الصورة + شارة التنبيه
+                    Stack(
+                      children: [
+                        StudentAvatar(
+                          studentId: student.id,
+                          fullName: student.fullName,
+                          photoBase64: student.photoUrl,
+                          size: 52,
+                          borderRadius: 14,
+                        ),
+                        if (needsAlert)
+                          Positioned(
+                            top: -4, right: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: alertColor.shade600,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: colors.cardBg, width: 2),
+                              ),
+                              child: const Icon(
+                                Icons.warning_amber_rounded,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                       ],
-                    ]),
-                  ]),
-                ),
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, color: colors.textSecondary, size: 22),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  color: colors.cardBg,
-                  elevation: 4,
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _showEditStudentDialog(student);
-                    } else if (value == 'delete') {
-                      _confirmDelete(student);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(children: [
-                        const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF4CAF50)),
-                        const SizedBox(width: 10),
-                        Text('تعديل',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: colors.textPrimary)),
-                      ]),
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(student.fullName,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: colors.textPrimary)),
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            Icon(Icons.badge_outlined,
+                                size: 12, color: colors.textTertiary),
+                            const SizedBox(width: 3),
+                            Text('${student.id}',
+                                style: TextStyle(
+                                    color: colors.textTertiary,
+                                    fontSize: 11)),
+                            if (hasGuardianPhone) ...[
+                              const SizedBox(width: 10),
+                              Icon(Icons.phone_iphone,
+                                  size: 12,
+                                  color: context.isDark
+                                      ? const Color(0xFF81C784)
+                                      : Colors.green.shade600),
+                              const SizedBox(width: 3),
+                              Text('ولي',
+                                  style: TextStyle(
+                                      color: context.isDark
+                                          ? const Color(0xFF81C784)
+                                          : Colors.green.shade600,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ]),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert,
+                          color: colors.textSecondary, size: 22),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      color: colors.cardBg,
+                      elevation: 4,
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _showEditStudentDialog(student);
+                        } else if (value == 'delete') {
+                          _confirmDelete(student);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [
+                            const Icon(Icons.edit_outlined,
+                                size: 18, color: Color(0xFF4CAF50)),
+                            const SizedBox(width: 10),
+                            Text('تعديل',
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.textPrimary)),
+                          ]),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            const Icon(Icons.delete_outline,
+                                size: 18, color: Color(0xFFEF5350)),
+                            const SizedBox(width: 10),
+                            const Text('حذف',
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFEF5350))),
+                          ]),
+                        ),
+                      ],
+                    ),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 14, color: colors.textTertiary),
+                  ]),
+                  // شريط التنبيه
+                  if (needsAlert) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: context.isDark
+                            ? alertColor.shade900.withOpacity(0.3)
+                            : alertColor.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: alertColor.shade200,
+                          width: 1,
+                        ),
+                      ),
                       child: Row(children: [
-                        const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF5350)),
-                        const SizedBox(width: 10),
-                        const Text('حذف',
+                        Icon(Icons.event_busy,
+                            size: 14, color: alertColor.shade600),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            student.consecutiveAbsences >= 5
+                                ? 'غياب متكرر: ${student.consecutiveAbsences} أيام متتالية'
+                                : 'غاب ${student.consecutiveAbsences} أيام متتالية',
                             style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFFEF5350))),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: context.isDark
+                                  ? alertColor.shade300
+                                  : alertColor.shade800,
+                            ),
+                          ),
+                        ),
                       ]),
                     ),
                   ],
-                ),
-                Icon(Icons.arrow_forward_ios, size: 14, color: colors.textTertiary),
-              ]),
+                ],
+              ),
             ),
           ),
         ),
