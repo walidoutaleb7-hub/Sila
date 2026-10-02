@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-// ═══════════════════════════════════════════════════════
-// ألوان التطبيق المخصصة
-// ═══════════════════════════════════════════════════════
 class AppColors extends ThemeExtension<AppColors> {
   final Color background;
   final Color cardBg;
@@ -87,11 +84,7 @@ class AppColors extends ThemeExtension<AppColors> {
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// نظام الثيمات
-// ═══════════════════════════════════════════════════════
 class AppTheme {
-  // ─── الوضع النهاري ───
   static const _lightColors = AppColors(
     background: Color(0xFFF5F7FA),
     cardBg: Colors.white,
@@ -107,7 +100,6 @@ class AppTheme {
     headerGradientEnd: Color(0xFF2E7D32),
   );
 
-  // ─── الوضع الليلي ───
   static const _darkColors = AppColors(
     background: Color(0xFF0F1419),
     cardBg: Color(0xFF1A2027),
@@ -123,64 +115,88 @@ class AppTheme {
     headerGradientEnd: Color(0xFF1B5E20),
   );
 
-  // ─── منتقي التاريخ (نهاري) ───
-  static DatePickerThemeData _lightDatePicker() => DatePickerThemeData(
-        backgroundColor: _lightColors.cardBg,
-        surfaceTintColor: Colors.transparent,
-        headerBackgroundColor: _lightColors.headerGradientMid,
-        headerForegroundColor: Colors.white,
-        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Colors.green.shade600;
-          }
-          return null;
-        }),
-        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Colors.white;
-          }
-          return _lightColors.textPrimary;
-        }),
-        todayForegroundColor: WidgetStateProperty.all(Colors.green.shade700),
-        todayBorder: BorderSide(color: Colors.green.shade700, width: 1.5),
-        yearForegroundColor:
-            WidgetStateProperty.all(_lightColors.textPrimary),
-        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Colors.green.shade600;
-          }
-          return null;
-        }),
-      );
-
-  // ─── منتقي التاريخ (ليلي) ───
-  static DatePickerThemeData _darkDatePicker() => DatePickerThemeData(
-        backgroundColor: _darkColors.cardBg,
-        surfaceTintColor: Colors.transparent,
-        headerBackgroundColor: _darkColors.headerGradientMid,
-        headerForegroundColor: Colors.white,
-        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Colors.green.shade600;
-          }
-          return null;
-        }),
-        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Colors.white;
-          }
-          return _darkColors.textPrimary;
-        }),
-        todayForegroundColor: WidgetStateProperty.all(Colors.green.shade300),
-        todayBorder: BorderSide(color: Colors.green.shade300, width: 1.5),
-        yearForegroundColor: WidgetStateProperty.all(_darkColors.textPrimary),
-        yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return Colors.green.shade600;
-          }
-          return null;
-        }),
-      );
+  static DatePickerThemeData _buildDatePicker({
+    required AppColors c,
+    required bool isDark,
+  }) {
+    final green = isDark ? Colors.green.shade400 : Colors.green.shade700;
+    return DatePickerThemeData(
+      backgroundColor: c.cardBg,
+      surfaceTintColor: Colors.transparent,
+      elevation: 4,
+      shadowColor: Colors.black.withOpacity(0.3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      headerBackgroundColor: c.headerGradientMid,
+      headerForegroundColor: Colors.white,
+      headerHeadlineStyle: const TextStyle(
+        fontSize: 26,
+        fontWeight: FontWeight.w300,
+        color: Colors.white,
+      ),
+      headerHelpStyle: TextStyle(
+        color: Colors.white.withOpacity(0.85),
+        fontSize: 13,
+      ),
+      weekdayStyle: TextStyle(
+        color: c.textPrimary,
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+      dayStyle: TextStyle(color: c.textPrimary, fontSize: 14),
+      dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return green;
+        return null;
+      }),
+      dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return Colors.white;
+        if (states.contains(WidgetState.disabled)) {
+          return c.textTertiary;
+        }
+        return c.textPrimary;
+      }),
+      dayOverlayColor: WidgetStateProperty.all(
+        green.withOpacity(0.15),
+      ),
+      todayForegroundColor: WidgetStateProperty.all(green),
+      todayBorder: BorderSide(color: green, width: 1.5),
+      yearStyle: TextStyle(color: c.textPrimary, fontSize: 14),
+      yearForegroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return Colors.white;
+        if (states.contains(WidgetState.disabled)) {
+          return c.textTertiary;
+        }
+        return c.textPrimary;
+      }),
+      yearBackgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return green;
+        return null;
+      }),
+      rangePickerBackgroundColor: c.cardBg,
+      rangePickerSurfaceTintColor: Colors.transparent,
+      rangeSelectionBackgroundColor: green.withOpacity(0.2),
+      rangePickerHeaderBackgroundColor: c.headerGradientMid,
+      rangePickerHeaderForegroundColor: Colors.white,
+      dividerColor: c.divider,
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: c.inputFill,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: c.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: green, width: 1.5),
+        ),
+      ),
+    );
+  }
 
   static ThemeData light() {
     return ThemeData(
@@ -215,7 +231,17 @@ class AppTheme {
           borderRadius: BorderRadius.circular(22),
         ),
       ),
-      datePickerTheme: _lightDatePicker(),
+      datePickerTheme: _buildDatePicker(c: _lightColors, isDark: false),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: _lightColors.cardBg,
+        dialBackgroundColor: _lightColors.inputFill,
+        dialHandColor: Colors.green.shade700,
+        hourMinuteColor: _lightColors.inputFill,
+        dayPeriodColor: _lightColors.inputFill,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
       ),
@@ -255,7 +281,17 @@ class AppTheme {
           borderRadius: BorderRadius.circular(22),
         ),
       ),
-      datePickerTheme: _darkDatePicker(),
+      datePickerTheme: _buildDatePicker(c: _darkColors, isDark: true),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: _darkColors.cardBg,
+        dialBackgroundColor: _darkColors.inputFill,
+        dialHandColor: Colors.green.shade400,
+        hourMinuteColor: _darkColors.inputFill,
+        dayPeriodColor: _darkColors.inputFill,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
       ),
@@ -263,9 +299,6 @@ class AppTheme {
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// اختصارات
-// ═══════════════════════════════════════════════════════
 extension ThemeX on BuildContext {
   AppColors get colors => Theme.of(this).extension<AppColors>()!;
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
