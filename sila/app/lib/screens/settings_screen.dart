@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/font_controller.dart';
 import '../theme/preferences_controller.dart';
@@ -26,38 +27,16 @@ class SettingsScreen extends StatelessWidget {
           themeController,
           fontController,
           preferencesController,
+          authService,
         ]),
         builder: (context, _) {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // ═══════ معلومات الأستاذ ═══════
-              _sectionTitle('معلوماتي', Icons.person_outline),
+              // ═══════ حسابي ═══════
+              _sectionTitle('حسابي', Icons.account_circle_outlined),
               const SizedBox(height: 10),
-              _settingsCard(
-                context,
-                children: [
-                  _editableTile(
-                    context,
-                    icon: Icons.badge_outlined,
-                    title: 'اسم الأستاذ',
-                    value: preferencesController.teacherName.isEmpty
-                        ? 'لم يُحدَّد'
-                        : preferencesController.teacherName,
-                    isSet: preferencesController.teacherName.isNotEmpty,
-                    onTap: () => _showTeacherInfoDialog(context),
-                  ),
-                  _divider(context),
-                  _infoTile(
-                    context,
-                    icon: Icons.school_outlined,
-                    title: 'المدرسة',
-                    value: preferencesController.schoolName.isEmpty
-                        ? 'لم تُحدَّد'
-                        : preferencesController.schoolName,
-                  ),
-                ],
-              ),
+              _buildUserCard(context),
               const SizedBox(height: 20),
 
               // ═══════ المظهر ═══════
@@ -137,7 +116,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // ═══════ بيانات ═══════
+              // ═══════ البيانات ═══════
               _sectionTitle('البيانات', Icons.storage_outlined),
               const SizedBox(height: 10),
               _settingsCard(
@@ -147,9 +126,25 @@ class SettingsScreen extends StatelessWidget {
                     context,
                     icon: Icons.cleaning_services_outlined,
                     title: 'مسح البيانات المحلية',
-                    subtitle: 'الإعدادات + الخطوط + معلوماتك',
+                    subtitle: 'الإعدادات + الخطوط + التفضيلات',
                     color: Colors.orange,
                     onTap: () => _confirmClearData(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ═══════ تسجيل الخروج ═══════
+              _settingsCard(
+                context,
+                children: [
+                  _actionTile(
+                    context,
+                    icon: Icons.logout,
+                    title: 'تسجيل الخروج',
+                    subtitle: 'سيتم إنهاء جلستك على هذا الجهاز',
+                    color: Colors.red,
+                    onTap: () => _confirmLogout(context),
                   ),
                 ],
               ),
@@ -257,20 +252,160 @@ class SettingsScreen extends StatelessWidget {
   }
 
   // ═══════════════════════════════════════════
-  // حوار معلومات الأستاذ
+  // بطاقة المستخدم
   // ═══════════════════════════════════════════
-  void _showTeacherInfoDialog(BuildContext context) {
-    final nameController = TextEditingController(
-        text: preferencesController.teacherName);
-    final schoolController = TextEditingController(
-        text: preferencesController.schoolName);
+  Widget _buildUserCard(BuildContext context) {
+    final colors = context.colors;
+    final user = authService.user;
+
+    if (user == null) {
+      return _settingsCard(
+        context,
+        children: [
+          _actionTile(
+            context,
+            icon: Icons.login,
+            title: 'تسجيل الدخول',
+            subtitle: 'للمتابعة',
+            onTap: () {},
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            context.isDark ? const Color(0xFF0D3B14) : Colors.green.shade700,
+            context.isDark ? const Color(0xFF1B5E20) : Colors.green.shade500,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  _initials(user.fullName),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.fullName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.email,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Material(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _showEditProfile(context),
+                child: const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Icon(Icons.edit_outlined,
+                      color: Colors.white, size: 18),
+                ),
+              ),
+            ),
+          ]),
+          if (user.schoolName != null &&
+              user.schoolName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Divider(color: Colors.white.withOpacity(0.15)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.school_outlined,
+                  color: Colors.white.withOpacity(0.9), size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  user.schoolName!,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _initials(String name) {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}';
+    return parts[0][0];
+  }
+
+  // ═══════════════════════════════════════════
+  // تعديل الملف الشخصي
+  // ═══════════════════════════════════════════
+  void _showEditProfile(BuildContext context) {
+    final user = authService.user;
+    if (user == null) return;
+
+    final nameController = TextEditingController(text: user.fullName);
+    final schoolController =
+        TextEditingController(text: user.schoolName ?? '');
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-        ),
+            borderRadius: BorderRadius.circular(22)),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         title: Row(children: [
@@ -282,11 +417,11 @@ class SettingsScreen extends StatelessWidget {
                   : const Color(0xFFE8F5E9),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.person_outline,
+            child: const Icon(Icons.edit_outlined,
                 color: Color(0xFF4CAF50), size: 22),
           ),
           const SizedBox(width: 12),
-          const Text('معلوماتي',
+          const Text('تعديل الحساب',
               style: TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 17)),
         ]),
@@ -296,15 +431,15 @@ class SettingsScreen extends StatelessWidget {
             _buildInput(
               context,
               controller: nameController,
-              label: 'اسم الأستاذ',
+              label: 'الاسم الكامل',
               hint: 'مثال: أوطالب وليد',
-              icon: Icons.badge_outlined,
+              icon: Icons.person_outline,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _buildInput(
               context,
               controller: schoolController,
-              label: 'اسم المدرسة',
+              label: 'المدرسة',
               hint: 'مثال: ثانوية الأمير عبد القادر',
               icon: Icons.school_outlined,
             ),
@@ -315,33 +450,28 @@ class SettingsScreen extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
-              foregroundColor: context.colors.textSecondary,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 12),
-            ),
+                foregroundColor: context.colors.textSecondary),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
             onPressed: () async {
-              await preferencesController.setTeacherInfo(
-                name: nameController.text,
-                school: schoolController.text,
+              await authService.updateProfile(
+                fullName: nameController.text,
+                schoolName: schoolController.text,
               );
               if (context.mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Row(children: [
-                      Icon(Icons.check_circle, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('تم حفظ المعلومات'),
-                    ]),
-                    backgroundColor: Colors.green.shade700,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: const Row(children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('تم حفظ التعديلات'),
+                  ]),
+                  backgroundColor: Colors.green.shade700,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ));
               }
             },
             icon: const Icon(Icons.check_rounded, size: 18),
@@ -350,9 +480,6 @@ class SettingsScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 12),
-              elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -410,7 +537,68 @@ class SettingsScreen extends StatelessWidget {
   }
 
   // ═══════════════════════════════════════════
-  // مشاركة التطبيق
+  // تسجيل الخروج
+  // ═══════════════════════════════════════════
+  void _confirmLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.isDark
+                  ? const Color(0xFF3A1A1A)
+                  : const Color(0xFFFFEBEE),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.logout,
+                color: Color(0xFFEF5350), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Text('تسجيل الخروج',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 17)),
+        ]),
+        content: const Text(
+          'هل أنت متأكد من تسجيل الخروج؟\n'
+          'ستحتاج إدخال بياناتك مرة أخرى للدخول.',
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+                foregroundColor: context.colors.textSecondary),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              await authService.logout();
+            },
+            icon: const Icon(Icons.logout, size: 18),
+            label: const Text('خروج',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC62828),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // مشاركة
   // ═══════════════════════════════════════════
   void _shareApp(BuildContext context) {
     Share.share(
@@ -423,7 +611,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   // ═══════════════════════════════════════════
-  // تقييم التطبيق
+  // تقييم
   // ═══════════════════════════════════════════
   void _showRatingDialog(BuildContext context) {
     showDialog(
@@ -453,11 +641,9 @@ class SettingsScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'هل أعجبك التطبيق؟',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            const Text('هل أعجبك التطبيق؟',
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(
               'تقييمك يساعدنا على التحسين ويساعد غيرك على اكتشاف التطبيق.',
@@ -470,11 +656,8 @@ class SettingsScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
                 5,
-                (i) => Icon(
-                  Icons.star,
-                  size: 32,
-                  color: Colors.amber.shade400,
-                ),
+                (i) => const Icon(Icons.star,
+                    size: 32, color: Color(0xFFFFB300)),
               ),
             ),
             const SizedBox(height: 16),
@@ -525,30 +708,13 @@ class SettingsScreen extends StatelessWidget {
   // ═══════════════════════════════════════════
   void _showHelp(BuildContext context) {
     final faqs = [
-      {
-        'q': 'كيف أضيف قسماً جديداً؟',
-        'a': 'من الشاشة الرئيسية، اضغط الزر الأخضر "+ قسم جديد" في الأسفل.'
-      },
-      {
-        'q': 'كيف أسجّل حضور التلاميذ؟',
-        'a': 'افتح القسم، ثم اضغط زر "الحضور" في الأعلى. حدّد حالة كل تلميذ ثم اضغط "حفظ".'
-      },
-      {
-        'q': 'كيف أضيف صورة لتلميذ؟',
-        'a': 'من قائمة التلاميذ، اضغط على ⋮ بجانب التلميذ → "تعديل"، ثم اضغط أيقونة الكاميرا.'
-      },
-      {
-        'q': 'كيف أُدخل الدرجات؟',
-        'a': 'افتح القسم، اضغط "الدرجات" في الأعلى، ثم "+ تقييم جديد".'
-      },
-      {
-        'q': 'كيف أنشر مذكرة حصة؟',
-        'a': 'افتح القسم، اضغط "الملاحظات"، ثم "+ ملاحظة جديدة" واختر نوع "مذكرة حصة".'
-      },
-      {
-        'q': 'كيف أُصدّر تقريراً؟',
-        'a': 'افتح القسم، اضغط أيقونة المشاركة في الأعلى، واختر "CSV" أو "تقرير نصي".'
-      },
+      {'q': 'كيف أضيف قسماً جديداً؟', 'a': 'من الشاشة الرئيسية، اضغط الزر الأخضر "+ قسم جديد".'},
+      {'q': 'كيف أسجّل حضور التلاميذ؟', 'a': 'افتح القسم، اضغط زر "الحضور"، حدّد حالة كل تلميذ ثم "حفظ".'},
+      {'q': 'كيف أضيف صورة لتلميذ؟', 'a': 'من قائمة التلاميذ → ⋮ → "تعديل" → أيقونة الكاميرا.'},
+      {'q': 'كيف أُدخل الدرجات؟', 'a': 'افتح القسم → "الدرجات" → "+ تقييم جديد".'},
+      {'q': 'كيف أنشر مذكرة حصة؟', 'a': 'افتح القسم → "الملاحظات" → "+ ملاحظة" → نوع "مذكرة حصة".'},
+      {'q': 'كيف أُصدّر تقريراً؟', 'a': 'افتح القسم → أيقونة المشاركة → CSV أو تقرير نصي.'},
+      {'q': 'كيف أرسل رسالة لولي؟', 'a': 'افتح تفاصيل التلميذ → زر "مراسلة" → اختر رسالة جاهزة.'},
     ];
 
     showDialog(
@@ -581,9 +747,7 @@ class SettingsScreen extends StatelessWidget {
             shrinkWrap: true,
             itemCount: faqs.length,
             separatorBuilder: (_, __) => Divider(
-              color: context.colors.divider,
-              height: 20,
-            ),
+                color: context.colors.divider, height: 20),
             itemBuilder: (context, i) {
               final faq = faqs[i];
               return Column(
@@ -632,8 +796,6 @@ class SettingsScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -646,34 +808,15 @@ class SettingsScreen extends StatelessWidget {
   }
 
   // ═══════════════════════════════════════════
-  // سياسة الخصوصية
+  // الخصوصية
   // ═══════════════════════════════════════════
   void _showPrivacy(BuildContext context) {
     final items = [
-      {
-        'title': 'حماية البيانات',
-        'content': 'بيانات التلاميذ والدرجات والحضور محفوظة على خادم آمن '
-            'ولا يتم مشاركتها مع أي طرف ثالث.'
-      },
-      {
-        'title': 'لا إعلانات',
-        'content': 'التطبيق لا يحتوي على أي إعلانات ولا يتبع استخدامك '
-            'لأغراض تجارية.'
-      },
-      {
-        'title': 'صور التلاميذ',
-        'content': 'الصور تُرفع فقط بإذن الأستاذ وتُحفظ بشكل مشفر. '
-            'يمكن حذفها في أي وقت.'
-      },
-      {
-        'title': 'التقييم الديني',
-        'content': 'التطبيق محترم للقيم الإسلامية ولا يحتوي على أي محتوى '
-            'مخالف للشريعة.'
-      },
-      {
-        'title': 'حقوقك',
-        'content': 'لك الحق في حذف جميع بياناتك في أي وقت من الإعدادات.'
-      },
+      {'title': 'حماية البيانات', 'content': 'بيانات التلاميذ محفوظة على خادم آمن ولا تُشارك مع أي طرف ثالث.'},
+      {'title': 'حساب واحد لكل مستخدم', 'content': 'كل حساب معزول تماماً — لا يمكنك رؤية بيانات حساب آخر.'},
+      {'title': 'لا إعلانات', 'content': 'التطبيق لا يحتوي على إعلانات ولا يتتبع استخدامك.'},
+      {'title': 'صور التلاميذ', 'content': 'الصور تُحفظ بشكل مشفر. يمكن حذفها في أي وقت.'},
+      {'title': 'حقوقك', 'content': 'لك الحق في حذف جميع بياناتك في أي وقت.'},
     ];
 
     showDialog(
@@ -742,8 +885,6 @@ class SettingsScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -771,12 +912,12 @@ class SettingsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: context.isDark
-                  ? const Color(0xFF3A1A1A)
-                  : const Color(0xFFFFEBEE),
+                  ? const Color(0xFF3A2A0A)
+                  : const Color(0xFFFFF8E1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.warning_amber_rounded,
-                color: Color(0xFFEF5350), size: 22),
+                color: Color(0xFFFFB300), size: 22),
           ),
           const SizedBox(width: 12),
           const Text('مسح البيانات',
@@ -787,12 +928,10 @@ class SettingsScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'سيتم مسح البيانات التالية:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
+            const Text('سيتم مسح:',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14)),
             const SizedBox(height: 10),
-            _bullet(context, 'معلوماتك (الاسم، المدرسة)'),
             _bullet(context, 'اختيار الخط وحجمه'),
             _bullet(context, 'تفضيلات الوضع الليلي'),
             const SizedBox(height: 12),
@@ -810,7 +949,7 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'بيانات التلاميذ والدرجات والحضور لن تُمسح.',
+                    'بيانات التلاميذ وحسابك لن تُمسح.',
                     style: TextStyle(
                         fontSize: 11, color: Colors.orange.shade800),
                   ),
@@ -824,10 +963,7 @@ class SettingsScreen extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
-              foregroundColor: context.colors.textSecondary,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 12),
-            ),
+                foregroundColor: context.colors.textSecondary),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
@@ -835,19 +971,17 @@ class SettingsScreen extends StatelessWidget {
               await preferencesController.clearAll();
               if (context.mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Row(children: [
-                      Icon(Icons.check_circle, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('تم مسح البيانات المحلية'),
-                    ]),
-                    backgroundColor: Colors.green.shade700,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                );
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: const Row(children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('تم مسح البيانات'),
+                  ]),
+                  backgroundColor: Colors.green.shade700,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ));
               }
             },
             icon: const Icon(Icons.delete_outline, size: 18),
@@ -856,9 +990,6 @@ class SettingsScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFC62828),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 12),
-              elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
@@ -873,8 +1004,7 @@ class SettingsScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(children: [
         Container(
-          width: 5,
-          height: 5,
+          width: 5, height: 5,
           decoration: BoxDecoration(
             color: context.colors.textSecondary,
             shape: BoxShape.circle,
@@ -897,8 +1027,7 @@ class SettingsScreen extends StatelessWidget {
         final colors = context.colors;
         return Row(children: [
           Container(
-            width: 4,
-            height: 20,
+            width: 4, height: 20,
             decoration: BoxDecoration(
               color: Colors.green.shade700,
               borderRadius: BorderRadius.circular(2),
@@ -907,14 +1036,11 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(width: 10),
           Icon(icon, size: 18, color: Colors.green.shade700),
           const SizedBox(width: 6),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: colors.textPrimary,
-            ),
-          ),
+          Text(title,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary)),
         ]);
       },
     );
@@ -936,11 +1062,10 @@ class SettingsScreen extends StatelessWidget {
   Widget _divider(BuildContext context) {
     final colors = context.colors;
     return Divider(
-      height: 1,
-      color: colors.divider,
-      indent: 60,
-      endIndent: 16,
-    );
+        height: 1,
+        color: colors.divider,
+        indent: 60,
+        endIndent: 16);
   }
 
   Widget _switchTile(
@@ -1042,9 +1167,7 @@ class SettingsScreen extends StatelessWidget {
                 activeColor: Colors.green.shade600,
                 inactiveColor: colors.cardBorder,
                 label: preferencesController.fontScaleName,
-                onChanged: (v) {
-                  preferencesController.setFontScale(v);
-                },
+                onChanged: (v) => preferencesController.setFontScale(v),
               ),
             ),
             const Text('أ',
@@ -1113,101 +1236,6 @@ class SettingsScreen extends StatelessWidget {
                 ),
             ]),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _infoTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(children: [
-        Container(
-          padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(
-            color: context.isDark
-                ? const Color(0xFF1B3A1E)
-                : Colors.green.shade50,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 18, color: Colors.green.shade600),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: TextStyle(
-                      fontSize: 12, color: colors.textTertiary)),
-              const SizedBox(height: 3),
-              Text(value,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: colors.textPrimary)),
-            ],
-          ),
-        ),
-      ]),
-    );
-  }
-
-  Widget _editableTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String value,
-    required bool isSet,
-    required VoidCallback onTap,
-  }) {
-    final colors = context.colors;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: context.isDark
-                    ? const Color(0xFF1B3A1E)
-                    : Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18, color: Colors.green.shade600),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: TextStyle(
-                          fontSize: 12, color: colors.textTertiary)),
-                  const SizedBox(height: 3),
-                  Text(value,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: isSet
-                              ? colors.textPrimary
-                              : colors.textTertiary)),
-                ],
-              ),
-            ),
-            Icon(Icons.edit_outlined,
-                size: 16, color: colors.textTertiary),
-          ]),
         ),
       ),
     );
