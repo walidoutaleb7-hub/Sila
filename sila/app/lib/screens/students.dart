@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api.dart';
 import '../theme/app_theme.dart';
 import 'attendance.dart';
+import 'grades_list.dart';
 import 'stats.dart';
 import 'student_detail.dart';
 
@@ -102,8 +103,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
               color: context.isDark ? const Color(0xFF3A1A1A) : const Color(0xFFFFEBEE),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.delete_outline,
-                color: Color(0xFFEF5350), size: 22),
+            child: const Icon(Icons.delete_outline, color: Color(0xFFEF5350), size: 22),
           ),
           const SizedBox(width: 12),
           Text('حذف التلميذ',
@@ -139,7 +139,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   size: 16, color: Colors.orange.shade700),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('سيتم حذف كل سجلات الحضور الخاصة به أيضاً.',
+                child: Text('سيتم حذف كل سجلات الحضور والدرجات الخاصة به.',
                     style: TextStyle(color: Colors.orange.shade800, fontSize: 12)),
               ),
             ]),
@@ -231,8 +231,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
           fillColor: colors.inputFill,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none),
+              borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
           enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: colors.inputBorder, width: 1)),
@@ -292,6 +291,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
   void _goToStats() {
     Navigator.push(context,
         MaterialPageRoute(builder: (_) => StatsScreen(schoolClass: widget.schoolClass)));
+  }
+
+  void _goToGrades() {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => GradesListScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToStudentDetail(Student student) {
@@ -359,7 +363,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
               ),
             ),
             actions: [
-              // زر الإحصائيات
+              // الدرجات
+              _buildActionButton(
+                icon: Icons.grade_outlined,
+                label: 'الدرجات',
+                onTap: _goToGrades,
+              ),
+              // الإحصائيات
               Padding(
                 padding: const EdgeInsets.only(left: 6, top: 8, bottom: 8),
                 child: Material(
@@ -375,26 +385,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   ),
                 ),
               ),
-              // زر الحضور
-              Padding(
-                padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
-                child: Material(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: _goToAttendance,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.fact_check, size: 18),
-                        SizedBox(width: 6),
-                        Text('الحضور',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      ]),
-                    ),
-                  ),
-                ),
+              // الحضور
+              _buildActionButton(
+                icon: Icons.fact_check,
+                label: 'الحضور',
+                onTap: _goToAttendance,
+                leftMargin: 8,
               ),
             ],
           ),
@@ -641,6 +637,34 @@ class _StudentsScreenState extends State<StudentsScreen> {
         icon: const Icon(Icons.person_add),
         label: const Text('تلميذ جديد',
             style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    double leftMargin = 8,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(left: leftMargin, top: 8, bottom: 8),
+      child: Material(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            ]),
+          ),
+        ),
       ),
     );
   }
