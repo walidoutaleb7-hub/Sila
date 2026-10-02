@@ -94,22 +94,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _pickDate() async {
+    // ✅ لا نُفرض ColorScheme - نستخدم ثيم التطبيق
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
       locale: const Locale('ar'),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.light(
-            primary: Colors.green.shade700,
-            onPrimary: Colors.white,
-            onSurface: context.isDark ? Colors.white : Colors.black,
-          ),
-        ),
-        child: child!,
-      ),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
@@ -121,7 +112,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
-        Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white),
+        Icon(isError ? Icons.error_outline : Icons.check_circle,
+            color: Colors.white),
         const SizedBox(width: 8),
         Expanded(child: Text(message)),
       ]),
@@ -150,7 +142,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _buildHeader(),
         Expanded(child: _buildBody()),
       ]),
-      bottomNavigationBar: _students.isEmpty || _loading ? null : _buildBottomBar(),
+      bottomNavigationBar:
+          _students.isEmpty || _loading ? null : _buildBottomBar(),
     );
   }
 
@@ -177,9 +170,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             borderRadius: BorderRadius.circular(14),
             onTap: _pickDate,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
-                const Icon(Icons.calendar_today, color: Colors.white, size: 20),
+                const Icon(Icons.calendar_today,
+                    color: Colors.white, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -221,7 +216,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           const SizedBox(height: 4),
           Text('$count',
               style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18)),
           Text(label,
               style: const TextStyle(color: Colors.white70, fontSize: 11)),
         ]),
@@ -236,7 +233,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           CircularProgressIndicator(color: Colors.green.shade600),
           const SizedBox(height: 16),
-          Text('جاري التحميل...', style: TextStyle(color: colors.textSecondary)),
+          Text('جاري التحميل...',
+              style: TextStyle(color: colors.textSecondary)),
         ]),
       );
     }
@@ -245,22 +243,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.error_outline, size: 60, color: Colors.red.shade400),
-            const SizedBox(height: 16),
-            Text('خطأ: $_error',
-                textAlign: TextAlign.center, style: TextStyle(color: colors.textPrimary)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade700,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ]),
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline,
+                    size: 60, color: Colors.red.shade400),
+                const SizedBox(height: 16),
+                Text('خطأ: $_error',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textPrimary)),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _loadData,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('إعادة المحاولة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ]),
         ),
       );
     }
@@ -269,18 +271,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.group_off, size: 72, color: colors.textTertiary),
-            const SizedBox(height: 16),
-            Text('لا يوجد تلاميذ في هذا القسم',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colors.textPrimary)),
-            const SizedBox(height: 8),
-            Text('أضف تلاميذاً أولاً من شاشة القسم',
-                style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-          ]),
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.group_off, size: 72, color: colors.textTertiary),
+                const SizedBox(height: 16),
+                Text('لا يوجد تلاميذ في هذا القسم',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary)),
+                const SizedBox(height: 8),
+                Text('أضف تلاميذاً أولاً من شاشة القسم',
+                    style:
+                        TextStyle(color: colors.textSecondary, fontSize: 13)),
+              ]),
         ),
       );
     }
@@ -291,7 +296,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _students.length,
-        itemBuilder: (context, index) => _buildStudentRow(_students[index], index),
+        itemBuilder: (context, index) =>
+            _buildStudentRow(_students[index], index),
       ),
     );
   }
@@ -334,7 +340,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Row(children: [
-            // صورة التلميذ
             StudentAvatar(
               studentId: student.id,
               fullName: student.fullName,
@@ -344,36 +349,42 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(student.fullName,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: colors.textPrimary)),
-                const SizedBox(height: 2),
-                Text(
-                  isUnset ? 'لم يُحدَّد' : isPresent ? 'حاضر' : 'غائب',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isPresent
-                        ? Colors.green.shade600
-                        : isAbsent
-                            ? Colors.red.shade600
-                            : colors.textTertiary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(student.fullName,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: colors.textPrimary)),
+                    const SizedBox(height: 2),
+                    Text(
+                      isUnset ? 'لم يُحدَّد' : isPresent ? 'حاضر' : 'غائب',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isPresent
+                            ? Colors.green.shade600
+                            : isAbsent
+                                ? Colors.red.shade600
+                                : colors.textTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ]),
             ),
             _buildToggle(
-              icon: Icons.check, label: 'حاضر',
-              isActive: isPresent, isGreen: true,
+              icon: Icons.check,
+              label: 'حاضر',
+              isActive: isPresent,
+              isGreen: true,
               onTap: () => _setStatus(student.id, 'PRESENT'),
             ),
             const SizedBox(width: 6),
             _buildToggle(
-              icon: Icons.close, label: 'غائب',
-              isActive: isAbsent, isGreen: false,
+              icon: Icons.close,
+              label: 'غائب',
+              isActive: isAbsent,
+              isGreen: false,
               onTap: () => _setStatus(student.id, 'ABSENT'),
             ),
           ]),
@@ -393,7 +404,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return Material(
       color: isActive
           ? color.shade600
-          : (context.isDark ? color.shade900.withOpacity(0.3) : color.shade50),
+          : (context.isDark
+              ? color.shade900.withOpacity(0.3)
+              : color.shade50),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -401,7 +414,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 16,
+            Icon(icon,
+                size: 16,
                 color: isActive ? Colors.white : color.shade400),
             const SizedBox(width: 4),
             Text(label,
@@ -441,7 +455,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 foregroundColor: Colors.green.shade600,
                 side: BorderSide(color: Colors.green.shade600, width: 1.5),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -452,16 +467,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? const SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.save, size: 20),
               label: Text(_saving ? 'جاري الحفظ...' : 'حفظ الحضور',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade700,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 elevation: 2,
               ),
             ),
