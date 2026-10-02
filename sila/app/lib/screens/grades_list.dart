@@ -26,11 +26,14 @@ class _GradesListScreenState extends State<GradesListScreen> {
     });
   }
 
-  void _goToEntry() {
+  void _goToEntry({GradeSession? edit}) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => GradesEntryScreen(schoolClass: widget.schoolClass),
+        builder: (_) => GradesEntryScreen(
+          schoolClass: widget.schoolClass,
+          editSession: edit,
+        ),
       ),
     ).then((_) => _load());
   }
@@ -62,12 +65,11 @@ class _GradesListScreenState extends State<GradesListScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _goToEntry,
+        onPressed: () => _goToEntry(),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('تقييم جديد',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text('تقييم جديد', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -125,8 +127,7 @@ class _GradesListScreenState extends State<GradesListScreen> {
           ),
           const SizedBox(height: 20),
           Text('لا توجد درجات بعد',
-              style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary)),
           const SizedBox(height: 8),
           Text('اضغط زر + لإضافة أول تقييم',
               style: TextStyle(color: colors.textSecondary, fontSize: 14)),
@@ -178,70 +179,101 @@ class _GradesListScreenState extends State<GradesListScreen> {
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: context.isDark
-                      ? gradeColor.shade900.withOpacity(0.4)
-                      : gradeColor.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.assignment_outlined,
-                    color: gradeColor.shade400, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(s.assessment,
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: colors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text(ApiService.formatDateArabic(s.date),
-                      style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _goToEntry(edit: s),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: context.isDark
+                          ? gradeColor.shade900.withOpacity(0.4)
+                          : gradeColor.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.assignment_outlined, color: gradeColor.shade400, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(s.assessment,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16, color: colors.textPrimary)),
+                      const SizedBox(height: 4),
+                      Text(ApiService.formatDateArabic(s.date),
+                          style: TextStyle(fontSize: 12, color: colors.textSecondary)),
+                    ]),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: context.isDark
+                          ? gradeColor.shade900.withOpacity(0.4)
+                          : gradeColor.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(children: [
+                      Text(s.avg.toStringAsFixed(2),
+                          style: TextStyle(
+                              color: gradeColor.shade400,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
+                      Text('من ${s.maxScore.toInt()}',
+                          style: TextStyle(color: gradeColor.shade400, fontSize: 10)),
+                    ]),
+                  ),
                 ]),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: context.isDark
-                      ? gradeColor.shade900.withOpacity(0.4)
-                      : gradeColor.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(children: [
-                  Text(s.avg.toStringAsFixed(2),
-                      style: TextStyle(
-                          color: gradeColor.shade400,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16)),
-                  Text('من ${s.maxScore.toInt()}',
-                      style: TextStyle(color: gradeColor.shade400, fontSize: 10)),
+                const SizedBox(height: 12),
+                Divider(height: 1, color: colors.divider),
+                const SizedBox(height: 12),
+                Row(children: [
+                  _buildChip(Icons.people_outline, '${s.count} تلميذ', colors),
+                  const SizedBox(width: 8),
+                  _buildChip(Icons.scale_outlined, 'معامل ${s.coeff}', colors),
+                  const Spacer(),
+                  // أيقونة "تعديل"
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: context.isDark
+                          ? const Color(0xFF1B3A1E)
+                          : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.edit_outlined,
+                          size: 12,
+                          color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700),
+                      const SizedBox(width: 4),
+                      Text('تعديل',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700)),
+                    ]),
+                  ),
                 ]),
-              ),
-            ]),
-            const SizedBox(height: 12),
-            Divider(height: 1, color: colors.divider),
-            const SizedBox(height: 12),
-            Row(children: [
-              _buildChip(Icons.people_outline, '${s.count} تلميذ', colors),
-              const SizedBox(width: 8),
-              _buildChip(Icons.scale_outlined, 'معامل ${s.coeff}', colors),
-              const SizedBox(width: 8),
-              if (s.note != null && s.note!.isNotEmpty)
-                Expanded(
-                  child: Text(s.note!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-                ),
-            ]),
-          ]),
+                if (s.note != null && s.note!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Icon(Icons.notes_outlined, size: 12, color: colors.textTertiary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(s.note!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+                    ),
+                  ]),
+                ],
+              ]),
+            ),
+          ),
         ),
       ),
     );
