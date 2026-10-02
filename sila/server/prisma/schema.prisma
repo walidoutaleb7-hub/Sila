@@ -8,24 +8,27 @@ datasource db {
 }
 
 // ═══════════════════════════════════════════
-// المستخدم (كل حساب معزول)
+// المستخدم
 // ═══════════════════════════════════════════
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique @db.VarChar(150)
-  passwordHash String   @db.VarChar(200)
-  fullName     String   @db.VarChar(200)
-  schoolName   String?  @db.VarChar(200)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  email              String   @unique @db.VarChar(150)
+  passwordHash       String   @db.VarChar(200)
+  fullName           String   @db.VarChar(200)
+  schoolName         String?  @db.VarChar(200)
+  securityQuestion   String?  @db.VarChar(200)
+  securityAnswerHash String?  @db.VarChar(200)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  classes      Class[]
+  classes   Class[]
+  schedules Schedule[]
 
   @@map("users")
 }
 
 // ═══════════════════════════════════════════
-// القسم (مرتبط بمستخدم)
+// القسم
 // ═══════════════════════════════════════════
 model Class {
   id        Int      @id @default(autoincrement())
@@ -34,9 +37,10 @@ model Class {
   userId    String
   createdAt DateTime @default(now())
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  students Student[]
-  notes    Note[]
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students   Student[]
+  notes      Note[]
+  schedules  Schedule[]
 
   @@index([userId])
   @@map("classes")
@@ -46,13 +50,13 @@ model Class {
 // التلميذ
 // ═══════════════════════════════════════════
 model Student {
-  id             Int      @id @default(autoincrement())
-  fullName       String   @db.VarChar(200)
-  classId        Int
-  photoUrl       String?  @db.Text
-  guardianName   String?  @db.VarChar(200)
-  guardianPhone  String?  @db.VarChar(30)
-  createdAt      DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  fullName      String   @db.VarChar(200)
+  classId       Int
+  photoUrl      String?  @db.Text
+  guardianName  String?  @db.VarChar(200)
+  guardianPhone String?  @db.VarChar(30)
+  createdAt     DateTime @default(now())
 
   class      Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
   attendance Attendance[]
@@ -64,18 +68,19 @@ model Student {
 }
 
 // ═══════════════════════════════════════════
-// الحضور
+// الحضور (صباح/مساء)
 // ═══════════════════════════════════════════
 model Attendance {
   id        Int      @id @default(autoincrement())
   studentId Int
   date      DateTime @db.Date
-  status    String   @db.VarChar(20)
+  period    String   @db.VarChar(20) // MORNING / AFTERNOON
+  status    String   @db.VarChar(20) // PRESENT / ABSENT
   createdAt DateTime @default(now())
 
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([studentId, date])
+  @@unique([studentId, date, period])
   @@index([date])
   @@map("attendance")
 }
@@ -84,18 +89,18 @@ model Attendance {
 // الدرجات
 // ═══════════════════════════════════════════
 model Grade {
-  id          Int      @id @default(autoincrement())
-  studentId   Int
-  classId     Int
-  assessment  String   @db.VarChar(50)
-  score       Float
-  maxScore    Float    @default(20)
-  coeff       Int      @default(1)
-  date        DateTime @db.Date
-  note        String?  @db.VarChar(500)
-  createdAt   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  studentId  Int
+  classId    Int
+  assessment String   @db.VarChar(50)
+  score      Float
+  maxScore   Float    @default(20)
+  coeff      Int      @default(1)
+  date       DateTime @db.Date
+  note       String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
 
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([classId, date])
@@ -106,19 +111,40 @@ model Grade {
 // الملاحظات
 // ═══════════════════════════════════════════
 model Note {
-  id          Int      @id @default(autoincrement())
-  classId     Int
-  studentId   Int?
-  type        String   @db.VarChar(20)
-  title       String   @db.VarChar(200)
-  content     String   @db.VarChar(2000)
-  date        DateTime @db.Date
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  classId   Int
+  studentId Int?
+  type      String   @db.VarChar(20)
+  title     String   @db.VarChar(200)
+  content   String   @db.VarChar(2000)
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
 
-  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  student     Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([classId, date])
   @@index([studentId])
   @@map("notes")
+}
+
+// ═══════════════════════════════════════════
+// جدول الأسبوع
+// ═══════════════════════════════════════════
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  classId   Int
+  dayOfWeek Int      // 1 = الاثنين ... 7 = الأحد (Dart format)
+  startTime String   @db.VarChar(5) // "08:00"
+  endTime   String   @db.VarChar(5) // "09:00"
+  subject   String   @db.VarChar(100)
+  room      String?  @db.VarChar(50)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dayOfWeek])
+  @@map("schedule")
 }
