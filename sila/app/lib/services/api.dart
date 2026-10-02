@@ -35,7 +35,7 @@ class Student {
   final int id;
   final String fullName;
   final int classId;
-  final String? status; // PRESENT / ABSENT / null
+  final String? status;
 
   Student({
     required this.id,
@@ -73,6 +73,60 @@ class AttendanceEntry {
       studentId: json['studentId'] as int,
       fullName: json['fullName'] as String,
       status: json['status'] as String?,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════
+// نموذج سجل تلميذ واحد
+// ═══════════════════════════════════════════
+class StudentHistory {
+  final Student student;
+  final int total;
+  final int present;
+  final int absent;
+  final int rate;
+  final List<AttendanceRecord> records;
+
+  StudentHistory({
+    required this.student,
+    required this.total,
+    required this.present,
+    required this.absent,
+    required this.rate,
+    required this.records,
+  });
+
+  factory StudentHistory.fromJson(Map<String, dynamic> json) {
+    final s = json['student'];
+    final stats = json['stats'];
+    final recs = json['records'] as List<dynamic>;
+
+    return StudentHistory(
+      student: Student(
+        id: s['id'] as int,
+        fullName: s['fullName'] as String,
+        classId: s['classId'] as int,
+      ),
+      total: stats['total'] as int,
+      present: stats['present'] as int,
+      absent: stats['absent'] as int,
+      rate: stats['rate'] as int,
+      records: recs.map((e) => AttendanceRecord.fromJson(e)).toList(),
+    );
+  }
+}
+
+class AttendanceRecord {
+  final DateTime date;
+  final String status;
+
+  AttendanceRecord({required this.date, required this.status});
+
+  factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
+    return AttendanceRecord(
+      date: DateTime.parse(json['date'] as String),
+      status: json['status'] as String,
     );
   }
 }
@@ -164,12 +218,24 @@ class ApiService {
     throw Exception('فشل إضافة التلميذ');
   }
 
+  /// جلب سجل حضور تلميذ
+  static Future<StudentHistory> getStudentHistory(int studentId) async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/students/$studentId/attendance'))
+        .timeout(const Duration(seconds: 60));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return StudentHistory.fromJson(body['data']);
+      }
+    }
+    throw Exception('فشل جلب سجل التلميذ');
+  }
+
   // ─────────────────────────────────────────
   // الحضور
   // ─────────────────────────────────────────
-
-  /// حفظ سجل الحضور ليوم محدد
-  /// [records]: map من studentId → status (PRESENT / ABSENT)
   static Future<int> saveAttendance({
     required int classId,
     required DateTime date,
@@ -201,7 +267,6 @@ class ApiService {
     throw Exception('فشل حفظ الحضور');
   }
 
-  /// جلب سجل الحضور ليوم محدد
   static Future<List<AttendanceEntry>> getAttendance({
     required int classId,
     required DateTime date,
@@ -223,12 +288,39 @@ class ApiService {
   }
 
   // ─────────────────────────────────────────
-  // أدوات مساعدة
+  // أدوات
   // ─────────────────────────────────────────
   static String _formatDate(DateTime d) {
     final y = d.year.toString().padLeft(4, '0');
     final m = d.month.toString().padLeft(2, '0');
     final day = d.day.toString().padLeft(2, '0');
     return '$y-$m-$day';
+  }
+
+  static String formatDateArabic(DateTime d) {
+    const days = [
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+      'الأحد'
+    ];
+    const months = [
+      'جانفي',
+      'فيفري',
+      'مارس',
+      'أفريل',
+      'ماي',
+      'جوان',
+      'جويلية',
+      'أوت',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر'
+    ];
+    return '${days[d.weekday - 1]}، ${d.day} ${months[d.month - 1]} ${d.year}';
   }
 }
