@@ -8,7 +8,6 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-// نرفع حجم الـ body للصور
 app.use(express.json({ limit: '5mb' }));
 
 const asyncHandler = (fn: Function) =>
@@ -16,7 +15,7 @@ const asyncHandler = (fn: Function) =>
     Promise.resolve(fn(req, res, next)).catch(next);
 
 // ═══════════════════════════════════════════
-// 1. Health Check
+// 1. Health
 // ═══════════════════════════════════════════
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -43,7 +42,7 @@ app.post('/api/classes', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // ═══════════════════════════════════════════
-// 3. جلب كل الأقسام
+// 3. جلب الأقسام
 // ═══════════════════════════════════════════
 app.get('/api/classes', asyncHandler(async (req: Request, res: Response) => {
   const classes = await prisma.class.findMany({
@@ -58,6 +57,8 @@ app.get('/api/classes', asyncHandler(async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════
 const createStudentSchema = z.object({
   fullName: z.string().min(2).max(200),
+  guardianName: z.string().max(200).optional().nullable(),
+  guardianPhone: z.string().max(30).optional().nullable(),
 });
 
 app.post('/api/classes/:classId/students', asyncHandler(async (req: Request, res: Response) => {
@@ -77,7 +78,12 @@ app.post('/api/classes/:classId/students', asyncHandler(async (req: Request, res
     });
   }
   const student = await prisma.student.create({
-    data: { fullName: data.fullName, classId },
+    data: {
+      fullName: data.fullName,
+      classId,
+      guardianName: data.guardianName || null,
+      guardianPhone: data.guardianPhone || null,
+    },
   });
   res.status(201).json({ success: true, data: student });
 }));
@@ -118,9 +124,18 @@ app.post('/api/attendance', asyncHandler(async (req: Request, res: Response) => 
   const results = await prisma.$transaction(
     data.records.map((record) =>
       prisma.attendance.upsert({
-        where: { studentId_date: { studentId: record.studentId, date: attendanceDate } },
+        where: {
+          studentId_date: {
+            studentId: record.studentId,
+            date: attendanceDate,
+          },
+        },
         update: { status: record.status },
-        create: { studentId: record.studentId, date: attendanceDate, status: record.status },
+        create: {
+          studentId: record.studentId,
+          date: attendanceDate,
+          status: record.status,
+        },
       })
     )
   );
@@ -155,6 +170,7 @@ app.get('/api/attendance', asyncHandler(async (req: Request, res: Response) => {
     studentId: s.id,
     fullName: s.fullName,
     photoUrl: s.photoUrl,
+    guardianPhone: s.guardianPhone,
     status: s.attendance[0]?.status || null,
   }));
   res.json({ success: true, data: { classId, date: dateStr, students: result } });
@@ -165,6 +181,8 @@ app.get('/api/attendance', asyncHandler(async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════
 const updateStudentSchema = z.object({
   fullName: z.string().min(2).max(200),
+  guardianName: z.string().max(200).optional().nullable(),
+  guardianPhone: z.string().max(30).optional().nullable(),
 });
 
 app.put('/api/students/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -185,17 +203,20 @@ app.put('/api/students/:id', asyncHandler(async (req: Request, res: Response) =>
   }
   const updated = await prisma.student.update({
     where: { id: studentId },
-    data: { fullName: data.fullName },
+    data: {
+      fullName: data.fullName,
+      guardianName: data.guardianName !== undefined ? (data.guardianName || null) : student.guardianName,
+      guardianPhone: data.guardianPhone !== undefined ? (data.guardianPhone || null) : student.guardianPhone,
+    },
   });
   res.json({ success: true, data: updated });
 }));
 
 // ═══════════════════════════════════════════
-// 7.5.1. تحديث صورة تلميذ
-// PUT /api/students/:id/photo
+// 7.5.1. تحديث صورة
 // ═══════════════════════════════════════════
 const updatePhotoSchema = z.object({
-  photoUrl: z.string().min(1).max(5_000_000), // حد 5MB للـ base64
+  photoUrl: z.string().min(1).max(5_000_000),
 });
 
 app.put('/api/students/:id/photo', asyncHandler(async (req: Request, res: Response) => {
@@ -222,8 +243,7 @@ app.put('/api/students/:id/photo', asyncHandler(async (req: Request, res: Respon
 }));
 
 // ═══════════════════════════════════════════
-// 7.5.2. حذف صورة تلميذ
-// DELETE /api/students/:id/photo
+// 7.5.2. حذف صورة
 // ═══════════════════════════════════════════
 app.delete('/api/students/:id/photo', asyncHandler(async (req: Request, res: Response) => {
   const studentId = parseInt(String(req.params.id));
@@ -288,7 +308,10 @@ app.get('/api/classes/:id/stats', asyncHandler(async (req: Request, res: Respons
     });
   }
 
-  const students = await prisma.student.findMany({ where: { classId }, orderBy: { fullName: 'asc' } });
+  const students = await prisma.student.findMany({
+    where: { classId },
+    orderBy: { fullName: 'asc' },
+  });
   const allAttendance = await prisma.attendance.findMany({
     where: { student: { classId } },
     orderBy: { date: 'desc' },
@@ -327,7 +350,14 @@ app.get('/api/classes/:id/stats', asyncHandler(async (req: Request, res: Respons
     const sAbsent = sAttendance.filter(a => a.status === 'ABSENT').length;
     const sTotal = sAttendance.length;
     const sRate = sTotal > 0 ? Math.round((sPresent / sTotal) * 100) : 0;
-    return { id: s.id, fullName: s.fullName, present: sPresent, absent: sAbsent, total: sTotal, rate: sRate };
+    return {
+      id: s.id,
+      fullName: s.fullName,
+      present: sPresent,
+      absent: sAbsent,
+      total: sTotal,
+      rate: sRate,
+    };
   });
 
   const topStudents = [...studentStats].filter(s => s.total > 0)
@@ -398,7 +428,6 @@ app.post('/api/grades', asyncHandler(async (req: Request, res: Response) => {
       })
     )
   );
-
   res.json({ success: true, data: { saved: results.length } });
 }));
 
@@ -446,12 +475,11 @@ app.get('/api/classes/:id/grades', asyncHandler(async (req: Request, res: Respon
     count: s.count,
     avg: s.count > 0 ? Math.round((s.totalScore / s.count) * 100) / 100 : 0,
   }));
-
   res.json({ success: true, data: { sessions } });
 }));
 
 // ═══════════════════════════════════════════
-// 7.9.5. جلب درجات جلسة محددة
+// 7.9.5. جلب درجات جلسة
 // ═══════════════════════════════════════════
 app.get('/api/grades/session', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.query.classId));
@@ -466,7 +494,6 @@ app.get('/api/grades/session', asyncHandler(async (req: Request, res: Response) 
   }
 
   const gradeDate = new Date(dateStr);
-
   const grades = await prisma.grade.findMany({
     where: { classId, assessment, date: gradeDate },
     include: { student: { select: { id: true, fullName: true } } },
@@ -548,7 +575,11 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
   res.json({
     success: true,
     data: {
-      student: { id: student.id, fullName: student.fullName, classId: student.classId },
+      student: {
+        id: student.id,
+        fullName: student.fullName,
+        classId: student.classId,
+      },
       average,
       count: grades.length,
       assessmentAverages,
@@ -566,7 +597,7 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
 }));
 
 // ═══════════════════════════════════════════
-// 7.11. جلب سجل حضور تلميذ
+// 7.11. سجل حضور تلميذ
 // ═══════════════════════════════════════════
 app.get('/api/students/:id/attendance', asyncHandler(async (req: Request, res: Response) => {
   const studentId = parseInt(String(req.params.id));
@@ -594,7 +625,11 @@ app.get('/api/students/:id/attendance', asyncHandler(async (req: Request, res: R
   res.json({
     success: true,
     data: {
-      student: { id: student.id, fullName: student.fullName, classId: student.classId },
+      student: {
+        id: student.id,
+        fullName: student.fullName,
+        classId: student.classId,
+      },
       stats: { total, present, absent, rate },
       records: attendance.map(a => ({ date: a.date, status: a.status })),
     },
@@ -637,13 +672,11 @@ app.get('/api/classes/:id/notes', asyncHandler(async (req: Request, res: Respons
       error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
     });
   }
-
   const notes = await prisma.note.findMany({
     where: { classId },
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     include: { student: { select: { id: true, fullName: true } } },
   });
-
   res.json({
     success: true,
     data: {
@@ -668,16 +701,13 @@ app.get('/api/students/:id/notes', asyncHandler(async (req: Request, res: Respon
       error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
     });
   }
-
   const notes = await prisma.note.findMany({
     where: { studentId },
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
   });
-
   const positive = notes.filter(n => n.type === 'POSITIVE').length;
   const negative = notes.filter(n => n.type === 'NEGATIVE').length;
   const info = notes.filter(n => n.type === 'INFO').length;
-
   res.json({
     success: true,
     data: {
