@@ -30,7 +30,9 @@ class Student {
   final int id;
   final String fullName;
   final int classId;
-  final String? photoUrl; // base64
+  final String? photoUrl;
+  final String? guardianName;
+  final String? guardianPhone;
   final String? status;
 
   Student({
@@ -38,6 +40,8 @@ class Student {
     required this.fullName,
     required this.classId,
     this.photoUrl,
+    this.guardianName,
+    this.guardianPhone,
     this.status,
   });
 
@@ -46,27 +50,37 @@ class Student {
         fullName: json['fullName'] as String,
         classId: json['classId'] as int,
         photoUrl: json['photoUrl'] as String?,
+        guardianName: json['guardianName'] as String?,
+        guardianPhone: json['guardianPhone'] as String?,
         status: json['status'] as String?,
       );
+
+  bool get hasGuardianInfo =>
+      (guardianName?.trim().isNotEmpty ?? false) ||
+      (guardianPhone?.trim().isNotEmpty ?? false);
 }
 
 class AttendanceEntry {
   final int studentId;
   final String fullName;
   final String? photoUrl;
+  final String? guardianPhone;
   final String? status;
 
   AttendanceEntry({
     required this.studentId,
     required this.fullName,
     this.photoUrl,
+    this.guardianPhone,
     this.status,
   });
 
-  factory AttendanceEntry.fromJson(Map<String, dynamic> json) => AttendanceEntry(
+  factory AttendanceEntry.fromJson(Map<String, dynamic> json) =>
+      AttendanceEntry(
         studentId: json['studentId'] as int,
         fullName: json['fullName'] as String,
         photoUrl: json['photoUrl'] as String?,
+        guardianPhone: json['guardianPhone'] as String?,
         status: json['status'] as String?,
       );
 }
@@ -75,7 +89,8 @@ class AttendanceRecord {
   final DateTime date;
   final String status;
   AttendanceRecord({required this.date, required this.status});
-  factory AttendanceRecord.fromJson(Map<String, dynamic> json) => AttendanceRecord(
+  factory AttendanceRecord.fromJson(Map<String, dynamic> json) =>
+      AttendanceRecord(
         date: DateTime.parse(json['date'] as String),
         status: json['status'] as String,
       );
@@ -118,7 +133,7 @@ class StudentHistory {
 }
 
 // ═══════════════════════════════════════════
-// نماذج الإحصائيات
+// الإحصائيات
 // ═══════════════════════════════════════════
 class ClassStats {
   final String className;
@@ -147,34 +162,51 @@ class ClassStats {
         totalStudents: json['totalStudents'] as int,
         overall: OverallStats.fromJson(json['overall']),
         today: TodayStats.fromJson(json['today']),
-        last7Days: (json['last7Days'] as List).map((e) => DayStat.fromJson(e)).toList(),
-        topStudents: (json['topStudents'] as List).map((e) => StudentRank.fromJson(e)).toList(),
-        worstStudents: (json['worstStudents'] as List).map((e) => StudentRank.fromJson(e)).toList(),
+        last7Days:
+            (json['last7Days'] as List).map((e) => DayStat.fromJson(e)).toList(),
+        topStudents: (json['topStudents'] as List)
+            .map((e) => StudentRank.fromJson(e))
+            .toList(),
+        worstStudents: (json['worstStudents'] as List)
+            .map((e) => StudentRank.fromJson(e))
+            .toList(),
       );
 }
 
 class OverallStats {
   final int total, present, absent, rate;
-  OverallStats({required this.total, required this.present, required this.absent, required this.rate});
+  OverallStats({
+    required this.total,
+    required this.present,
+    required this.absent,
+    required this.rate,
+  });
   factory OverallStats.fromJson(Map<String, dynamic> json) => OverallStats(
-        total: json['total'] as int, present: json['present'] as int,
-        absent: json['absent'] as int, rate: json['rate'] as int,
+        total: json['total'] as int,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+        rate: json['rate'] as int,
       );
 }
 
 class TodayStats {
   final int present, absent;
   TodayStats({required this.present, required this.absent});
-  factory TodayStats.fromJson(Map<String, dynamic> json) =>
-      TodayStats(present: json['present'] as int, absent: json['absent'] as int);
+  factory TodayStats.fromJson(Map<String, dynamic> json) => TodayStats(
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+      );
 }
 
 class DayStat {
   final String date;
   final int present, absent;
   DayStat({required this.date, required this.present, required this.absent});
-  factory DayStat.fromJson(Map<String, dynamic> json) =>
-      DayStat(date: json['date'] as String, present: json['present'] as int, absent: json['absent'] as int);
+  factory DayStat.fromJson(Map<String, dynamic> json) => DayStat(
+        date: json['date'] as String,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+      );
 }
 
 class StudentRank {
@@ -182,18 +214,25 @@ class StudentRank {
   final String fullName;
   final int present, absent, total, rate;
   StudentRank({
-    required this.id, required this.fullName,
-    required this.present, required this.absent, required this.total, required this.rate,
+    required this.id,
+    required this.fullName,
+    required this.present,
+    required this.absent,
+    required this.total,
+    required this.rate,
   });
   factory StudentRank.fromJson(Map<String, dynamic> json) => StudentRank(
-        id: json['id'] as int, fullName: json['fullName'] as String,
-        present: json['present'] as int, absent: json['absent'] as int,
-        total: json['total'] as int, rate: json['rate'] as int,
+        id: json['id'] as int,
+        fullName: json['fullName'] as String,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+        total: json['total'] as int,
+        rate: json['rate'] as int,
       );
 }
 
 // ═══════════════════════════════════════════
-// نماذج الدرجات
+// الدرجات
 // ═══════════════════════════════════════════
 class GradeSession {
   final String assessment;
@@ -205,9 +244,13 @@ class GradeSession {
   final double avg;
 
   GradeSession({
-    required this.assessment, required this.date,
-    required this.maxScore, required this.coeff,
-    this.note, required this.count, required this.avg,
+    required this.assessment,
+    required this.date,
+    required this.maxScore,
+    required this.coeff,
+    this.note,
+    required this.count,
+    required this.avg,
   });
 
   factory GradeSession.fromJson(Map<String, dynamic> json) => GradeSession(
@@ -231,9 +274,13 @@ class StudentGrade {
   final String? note;
 
   StudentGrade({
-    required this.id, required this.assessment,
-    required this.score, required this.maxScore,
-    required this.coeff, required this.date, this.note,
+    required this.id,
+    required this.assessment,
+    required this.score,
+    required this.maxScore,
+    required this.coeff,
+    required this.date,
+    this.note,
   });
 
   factory StudentGrade.fromJson(Map<String, dynamic> json) => StudentGrade(
@@ -251,8 +298,13 @@ class AssessmentAverage {
   final String assessment;
   final double avg;
   final int count;
-  AssessmentAverage({required this.assessment, required this.avg, required this.count});
-  factory AssessmentAverage.fromJson(Map<String, dynamic> json) => AssessmentAverage(
+  AssessmentAverage({
+    required this.assessment,
+    required this.avg,
+    required this.count,
+  });
+  factory AssessmentAverage.fromJson(Map<String, dynamic> json) =>
+      AssessmentAverage(
         assessment: json['assessment'] as String,
         avg: (json['avg'] as num).toDouble(),
         count: json['count'] as int,
@@ -267,24 +319,34 @@ class StudentGrades {
   final List<StudentGrade> records;
 
   StudentGrades({
-    required this.student, required this.average, required this.count,
-    required this.assessmentAverages, required this.records,
+    required this.student,
+    required this.average,
+    required this.count,
+    required this.assessmentAverages,
+    required this.records,
   });
 
   factory StudentGrades.fromJson(Map<String, dynamic> json) {
     final s = json['student'];
     return StudentGrades(
-      student: Student(id: s['id'] as int, fullName: s['fullName'] as String, classId: s['classId'] as int),
+      student: Student(
+        id: s['id'] as int,
+        fullName: s['fullName'] as String,
+        classId: s['classId'] as int,
+      ),
       average: (json['average'] as num).toDouble(),
       count: json['count'] as int,
-      assessmentAverages: (json['assessmentAverages'] as List).map((e) => AssessmentAverage.fromJson(e)).toList(),
-      records: (json['records'] as List).map((e) => StudentGrade.fromJson(e)).toList(),
+      assessmentAverages: (json['assessmentAverages'] as List)
+          .map((e) => AssessmentAverage.fromJson(e))
+          .toList(),
+      records:
+          (json['records'] as List).map((e) => StudentGrade.fromJson(e)).toList(),
     );
   }
 }
 
 // ═══════════════════════════════════════════
-// نماذج التقرير الشامل
+// التقرير الشامل
 // ═══════════════════════════════════════════
 class StudentFullReport {
   final Student student;
@@ -305,7 +367,7 @@ class StudentFullReport {
 }
 
 // ═══════════════════════════════════════════
-// نموذج جلسة الدرجات
+// جلسة الدرجات
 // ═══════════════════════════════════════════
 class SessionGrades {
   final String assessment;
@@ -330,7 +392,8 @@ class SessionGrades {
         maxScore: (json['maxScore'] as num).toDouble(),
         coeff: json['coeff'] as int,
         note: json['note'] as String?,
-        records: (json['records'] as List).map((e) => SessionRecord.fromJson(e)).toList(),
+        records:
+            (json['records'] as List).map((e) => SessionRecord.fromJson(e)).toList(),
       );
 }
 
@@ -362,7 +425,7 @@ class SessionRecord {
 }
 
 // ═══════════════════════════════════════════
-// نماذج الملاحظات
+// الملاحظات
 // ═══════════════════════════════════════════
 class NoteItem {
   final int id;
@@ -392,11 +455,6 @@ class NoteItem {
         studentId: json['studentId'] as int?,
         studentName: json['studentName'] as String?,
       );
-
-  bool get isPositive => type == 'POSITIVE';
-  bool get isNegative => type == 'NEGATIVE';
-  bool get isInfo => type == 'INFO';
-  bool get isJournal => type == 'JOURNAL';
 }
 
 class StudentNotes {
@@ -427,33 +485,45 @@ class StudentNotes {
 }
 
 // ═══════════════════════════════════════════
-// خدمة الاتصال
+// الخدمة
 // ═══════════════════════════════════════════
 class ApiService {
   static const String _baseUrl = AppConfig.apiBaseUrl;
 
   // ───────── الأقسام ─────────
   static Future<List<SchoolClass>> getClasses() async {
-    final response = await http.get(Uri.parse('$_baseUrl/api/classes')).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/classes'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
-        return (body['data'] as List).map((e) => SchoolClass.fromJson(e)).toList();
+        return (body['data'] as List)
+            .map((e) => SchoolClass.fromJson(e))
+            .toList();
       }
     }
     throw Exception('فشل جلب الأقسام');
   }
 
-  static Future<SchoolClass> createClass({required String name, required String level}) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/classes'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'name': name, 'level': level}),
-    ).timeout(const Duration(seconds: 60));
+  static Future<SchoolClass> createClass({
+    required String name,
+    required String level,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/api/classes'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'name': name, 'level': level}),
+        )
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 201) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
-        return SchoolClass.fromJson({...body['data'], '_count': {'students': 0}});
+        return SchoolClass.fromJson({
+          ...body['data'],
+          '_count': {'students': 0},
+        });
       }
     }
     throw Exception('فشل إنشاء القسم');
@@ -461,7 +531,9 @@ class ApiService {
 
   // ───────── التلاميذ ─────────
   static Future<List<Student>> getStudents(int classId) async {
-    final response = await http.get(Uri.parse('$_baseUrl/api/classes/$classId/students')).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/students'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -471,12 +543,23 @@ class ApiService {
     throw Exception('فشل جلب التلاميذ');
   }
 
-  static Future<Student> createStudent({required int classId, required String fullName}) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/classes/$classId/students'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'fullName': fullName}),
-    ).timeout(const Duration(seconds: 60));
+  static Future<Student> createStudent({
+    required int classId,
+    required String fullName,
+    String? guardianName,
+    String? guardianPhone,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/api/classes/$classId/students'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'fullName': fullName,
+            'guardianName': guardianName,
+            'guardianPhone': guardianPhone,
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 201) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return Student.fromJson(body['data']);
@@ -484,12 +567,23 @@ class ApiService {
     throw Exception('فشل إضافة التلميذ');
   }
 
-  static Future<Student> updateStudent({required int studentId, required String fullName}) async {
-    final response = await http.put(
-      Uri.parse('$_baseUrl/api/students/$studentId'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'fullName': fullName}),
-    ).timeout(const Duration(seconds: 60));
+  static Future<Student> updateStudent({
+    required int studentId,
+    required String fullName,
+    String? guardianName,
+    String? guardianPhone,
+  }) async {
+    final response = await http
+        .put(
+          Uri.parse('$_baseUrl/api/students/$studentId'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'fullName': fullName,
+            'guardianName': guardianName,
+            'guardianPhone': guardianPhone,
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return Student.fromJson(body['data']);
@@ -498,20 +592,23 @@ class ApiService {
   }
 
   static Future<void> deleteStudent(int studentId) async {
-    final response = await http.delete(Uri.parse('$_baseUrl/api/students/$studentId')).timeout(const Duration(seconds: 60));
+    final response = await http
+        .delete(Uri.parse('$_baseUrl/api/students/$studentId'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) throw Exception('فشل حذف التلميذ');
   }
 
-  /// تحديث صورة التلميذ (base64)
   static Future<Student> updateStudentPhoto({
     required int studentId,
     required String photoBase64,
   }) async {
-    final response = await http.put(
-      Uri.parse('$_baseUrl/api/students/$studentId/photo'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'photoUrl': photoBase64}),
-    ).timeout(const Duration(seconds: 120));
+    final response = await http
+        .put(
+          Uri.parse('$_baseUrl/api/students/$studentId/photo'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'photoUrl': photoBase64}),
+        )
+        .timeout(const Duration(seconds: 120));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return Student.fromJson(body['data']);
@@ -519,7 +616,6 @@ class ApiService {
     throw Exception('فشل تحديث الصورة');
   }
 
-  /// حذف صورة التلميذ
   static Future<Student> deleteStudentPhoto(int studentId) async {
     final response = await http
         .delete(Uri.parse('$_baseUrl/api/students/$studentId/photo'))
@@ -532,7 +628,9 @@ class ApiService {
   }
 
   static Future<StudentHistory> getStudentHistory(int studentId) async {
-    final response = await http.get(Uri.parse('$_baseUrl/api/students/$studentId/attendance')).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/students/$studentId/attendance'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return StudentHistory.fromJson(body['data']);
@@ -541,7 +639,9 @@ class ApiService {
   }
 
   static Future<ClassStats> getClassStats(int classId) async {
-    final response = await http.get(Uri.parse('$_baseUrl/api/classes/$classId/stats')).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/stats'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return ClassStats.fromJson(body['data']);
@@ -582,21 +682,30 @@ class ApiService {
         ));
       }
     }
-
     return result;
   }
 
   // ───────── الحضور ─────────
   static Future<int> saveAttendance({
-    required int classId, required DateTime date, required Map<int, String> records,
+    required int classId,
+    required DateTime date,
+    required Map<int, String> records,
   }) async {
     final dateStr = _formatDate(date);
-    final recordsList = records.entries.map((e) => {'studentId': e.key, 'status': e.value}).toList();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/attendance'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'classId': classId, 'date': dateStr, 'records': recordsList}),
-    ).timeout(const Duration(seconds: 60));
+    final recordsList = records.entries
+        .map((e) => {'studentId': e.key, 'status': e.value})
+        .toList();
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/api/attendance'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'classId': classId,
+            'date': dateStr,
+            'records': recordsList,
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return body['data']['saved'] as int;
@@ -604,15 +713,21 @@ class ApiService {
     throw Exception('فشل حفظ الحضور');
   }
 
-  static Future<List<AttendanceEntry>> getAttendance({required int classId, required DateTime date}) async {
+  static Future<List<AttendanceEntry>> getAttendance({
+    required int classId,
+    required DateTime date,
+  }) async {
     final dateStr = _formatDate(date);
-    final response = await http.get(
-      Uri.parse('$_baseUrl/api/attendance?classId=$classId&date=$dateStr'),
-    ).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(Uri.parse(
+            '$_baseUrl/api/attendance?classId=$classId&date=$dateStr'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
-        return (body['data']['students'] as List).map((e) => AttendanceEntry.fromJson(e)).toList();
+        return (body['data']['students'] as List)
+            .map((e) => AttendanceEntry.fromJson(e))
+            .toList();
       }
     }
     throw Exception('فشل جلب سجل الحضور');
@@ -629,20 +744,23 @@ class ApiService {
     required Map<int, double> records,
   }) async {
     final dateStr = _formatDate(date);
-    final recordsList = records.entries.map((e) => {'studentId': e.key, 'score': e.value}).toList();
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/grades'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'classId': classId,
-        'assessment': assessment,
-        'maxScore': maxScore,
-        'coeff': coeff,
-        'date': dateStr,
-        'note': note,
-        'records': recordsList,
-      }),
-    ).timeout(const Duration(seconds: 60));
+    final recordsList =
+        records.entries.map((e) => {'studentId': e.key, 'score': e.value}).toList();
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/api/grades'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'classId': classId,
+            'assessment': assessment,
+            'maxScore': maxScore,
+            'coeff': coeff,
+            'date': dateStr,
+            'note': note,
+            'records': recordsList,
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return body['data']['saved'] as int;
@@ -651,18 +769,24 @@ class ApiService {
   }
 
   static Future<List<GradeSession>> getClassGrades(int classId) async {
-    final response = await http.get(Uri.parse('$_baseUrl/api/classes/$classId/grades')).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/grades'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
-        return (body['data']['sessions'] as List).map((e) => GradeSession.fromJson(e)).toList();
+        return (body['data']['sessions'] as List)
+            .map((e) => GradeSession.fromJson(e))
+            .toList();
       }
     }
     throw Exception('فشل جلب الدرجات');
   }
 
   static Future<StudentGrades> getStudentGrades(int studentId) async {
-    final response = await http.get(Uri.parse('$_baseUrl/api/students/$studentId/grades')).timeout(const Duration(seconds: 60));
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/students/$studentId/grades'))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return StudentGrades.fromJson(body['data']);
@@ -699,18 +823,20 @@ class ApiService {
     required String content,
     required DateTime date,
   }) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/notes'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'classId': classId,
-        'studentId': studentId,
-        'type': type,
-        'title': title,
-        'content': content,
-        'date': _formatDate(date),
-      }),
-    ).timeout(const Duration(seconds: 60));
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/api/notes'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'classId': classId,
+            'studentId': studentId,
+            'type': type,
+            'title': title,
+            'content': content,
+            'date': _formatDate(date),
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode == 201) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) return NoteItem.fromJson(body['data']);
@@ -725,7 +851,9 @@ class ApiService {
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
-        return (body['data']['notes'] as List).map((e) => NoteItem.fromJson(e)).toList();
+        return (body['data']['notes'] as List)
+            .map((e) => NoteItem.fromJson(e))
+            .toList();
       }
     }
     throw Exception('فشل جلب الملاحظات');
