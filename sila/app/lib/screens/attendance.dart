@@ -13,6 +13,7 @@ class AttendanceScreen extends StatefulWidget {
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
   DateTime _selectedDate = DateTime.now();
+  String _selectedPeriod = 'MORNING';
   List<Student> _students = [];
   Map<int, String> _records = {};
   bool _loading = true;
@@ -35,6 +36,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final attendance = await ApiService.getAttendance(
         classId: widget.schoolClass.id,
         date: _selectedDate,
+        period: _selectedPeriod,
       );
       final records = <int, String>{};
       for (final entry in attendance) {
@@ -83,9 +85,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final saved = await ApiService.saveAttendance(
         classId: widget.schoolClass.id,
         date: _selectedDate,
+        period: _selectedPeriod,
         records: _records,
       );
-      _showSnack('تم حفظ حضور $saved تلميذ بنجاح', isError: false);
+      _showSnack(
+          'تم حفظ حضور ${ApiService.periodName(_selectedPeriod)} ($saved تلميذ)',
+          isError: false);
     } catch (e) {
       _showSnack('فشل الحفظ: $e', isError: true);
     } finally {
@@ -93,7 +98,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  // ✅ نستخدم ar-DZ = أرقام غربية
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -106,6 +110,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       setState(() => _selectedDate = picked);
       _loadData();
     }
+  }
+
+  void _switchPeriod(String period) {
+    if (_selectedPeriod == period) return;
+    setState(() {
+      _selectedPeriod = period;
+      _records = {};
+    });
+    _loadData();
   }
 
   void _showSnack(String message, {required bool isError}) {
@@ -163,6 +176,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ),
       ),
       child: Column(children: [
+        // التاريخ
         Material(
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(14),
@@ -191,7 +205,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        // اختيار الفترة
+        _buildPeriodSelector(),
         const SizedBox(height: 14),
+        // الإحصائيات
         Row(children: [
           _buildStatCard('الحاضرون', _presentCount, Icons.check_circle),
           const SizedBox(width: 10),
@@ -200,6 +218,77 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           _buildStatCard('المجموع', _students.length, Icons.people),
         ]),
       ]),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: _buildPeriodButton(
+            label: 'صباحاً',
+            icon: Icons.wb_sunny_outlined,
+            isActive: _selectedPeriod == 'MORNING',
+            onTap: () => _switchPeriod('MORNING'),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: _buildPeriodButton(
+            label: 'مساءً',
+            icon: Icons.nights_stay_outlined,
+            isActive: _selectedPeriod == 'AFTERNOON',
+            onTap: () => _switchPeriod('AFTERNOON'),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildPeriodButton({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: isActive ? Colors.white.withOpacity(0.95) : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isActive
+                    ? Colors.green.shade700
+                    : Colors.white.withOpacity(0.9),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isActive
+                      ? Colors.green.shade700
+                      : Colors.white.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -472,9 +561,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.save, size: 20),
-              label: Text(_saving ? 'جاري الحفظ...' : 'حفظ الحضور',
+              label: Text(
+                  _saving
+                      ? 'جاري الحفظ...'
+                      : 'حفظ ${ApiService.periodName(_selectedPeriod)}',
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15)),
+                      fontWeight: FontWeight.bold, fontSize: 14)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade700,
                 foregroundColor: Colors.white,
