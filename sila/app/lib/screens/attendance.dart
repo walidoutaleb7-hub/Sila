@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
+import '../theme/app_theme.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final SchoolClass schoolClass;
-
   const AttendanceScreen({super.key, required this.schoolClass});
 
   @override
@@ -13,7 +13,7 @@ class AttendanceScreen extends StatefulWidget {
 class _AttendanceScreenState extends State<AttendanceScreen> {
   DateTime _selectedDate = DateTime.now();
   List<Student> _students = [];
-  Map<int, String> _records = {}; // studentId → PRESENT/ABSENT
+  Map<int, String> _records = {};
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -29,25 +29,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _loading = true;
       _error = null;
     });
-
     try {
-      // 1. جلب التلاميذ
       final students = await ApiService.getStudents(widget.schoolClass.id);
-
-      // 2. جلب سجل الحضور الحالي (إن وُجد)
       final attendance = await ApiService.getAttendance(
         classId: widget.schoolClass.id,
         date: _selectedDate,
       );
-
-      // 3. دمج البيانات
       final records = <int, String>{};
       for (final entry in attendance) {
-        if (entry.status != null) {
-          records[entry.studentId] = entry.status!;
-        }
+        if (entry.status != null) records[entry.studentId] = entry.status!;
       }
-
       setState(() {
         _students = students;
         _records = records;
@@ -61,36 +52,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  void _toggleStatus(int studentId) {
+  void _setStatus(int studentId, String status) {
     setState(() {
-      final current = _records[studentId];
-      if (current == 'PRESENT') {
-        _records[studentId] = 'ABSENT';
+      if (_records[studentId] == status) {
+        _records.remove(studentId);
       } else {
-        _records[studentId] = 'PRESENT';
+        _records[studentId] = status;
       }
     });
   }
 
   void _markAllPresent() {
     setState(() {
-      for (final student in _students) {
-        _records[student.id] = 'PRESENT';
+      for (final s in _students) {
+        _records[s.id] = 'PRESENT';
       }
     });
     _showSnack('تم تعليم الكل كحاضر', isError: false);
   }
 
   Future<void> _save() async {
-    // تحقق: كل التلاميذ لهم حالة
     final missing = _students.where((s) => !_records.containsKey(s.id)).length;
     if (missing > 0) {
       _showSnack('يجب تحديد حالة كل التلاميذ ($missing ناقص)', isError: true);
       return;
     }
-
     setState(() => _saving = true);
-
     try {
       final saved = await ApiService.saveAttendance(
         classId: widget.schoolClass.id,
@@ -112,20 +99,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
       locale: const Locale('ar'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Colors.green.shade700,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: Colors.green.shade700,
+            onPrimary: Colors.white,
+            onSurface: context.isDark ? Colors.white : Colors.black,
           ),
-          child: child!,
-        );
-      },
+        ),
+        child: child!,
+      ),
     );
-
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
       _loadData();
@@ -134,148 +118,96 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   void _showSnack(String message, {required bool isError}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor:
-            isError ? Colors.red.shade700 : Colors.green.shade700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white),
+        const SizedBox(width: 8),
+        Expanded(child: Text(message)),
+      ]),
+      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 
-  int get _presentCount =>
-      _records.values.where((v) => v == 'PRESENT').length;
-  int get _absentCount =>
-      _records.values.where((v) => v == 'ABSENT').length;
+  int get _presentCount => _records.values.where((v) => v == 'PRESENT').length;
+  int get _absentCount => _records.values.where((v) => v == 'ABSENT').length;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('تسجيل الحضور'),
         centerTitle: true,
-        backgroundColor: Colors.green.shade800,
+        backgroundColor: colors.headerGradientMid,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // ═══════ شريط التاريخ + الإحصائيات ═══════
-          _buildHeader(),
-
-          // ═══════ المحتوى ═══════
-          Expanded(child: _buildBody()),
-        ],
-      ),
-      bottomNavigationBar: _students.isEmpty || _loading
-          ? null
-          : _buildBottomBar(),
+      body: Column(children: [
+        _buildHeader(),
+        Expanded(child: _buildBody()),
+      ]),
+      bottomNavigationBar: _students.isEmpty || _loading ? null : _buildBottomBar(),
     );
   }
 
-  // ─────────────────────────────────────────
-  // الرأس: التاريخ + العداد
-  // ─────────────────────────────────────────
   Widget _buildHeader() {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
-          colors: [Colors.green.shade800, Colors.green.shade600],
+          colors: [colors.headerGradientMid, colors.headerGradientEnd],
         ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
         ),
       ),
-      child: Column(
-        children: [
-          // اختيار التاريخ
-          Material(
-            color: Colors.white.withOpacity(0.15),
+      child: Column(children: [
+        Material(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
             borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: _pickDate,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today,
-                        color: Colors.white, size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _formatDateArabic(_selectedDate),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
+            onTap: _pickDate,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(children: [
+                const Icon(Icons.calendar_today, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    ApiService.formatDateArabic(_selectedDate),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
-                    const Icon(Icons.keyboard_arrow_down,
-                        color: Colors.white),
-                  ],
+                  ),
                 ),
-              ),
+                const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+              ]),
             ),
           ),
-          const SizedBox(height: 14),
-
-          // الإحصائيات
-          Row(
-            children: [
-              _buildStatCard(
-                label: 'الحاضرون',
-                count: _presentCount,
-                icon: Icons.check_circle,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 10),
-              _buildStatCard(
-                label: 'الغائبون',
-                count: _absentCount,
-                icon: Icons.cancel,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 10),
-              _buildStatCard(
-                label: 'المجموع',
-                count: _students.length,
-                icon: Icons.people,
-                color: Colors.white,
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 14),
+        Row(children: [
+          _buildStatCard('الحاضرون', _presentCount, Icons.check_circle),
+          const SizedBox(width: 10),
+          _buildStatCard('الغائبون', _absentCount, Icons.cancel),
+          const SizedBox(width: 10),
+          _buildStatCard('المجموع', _students.length, Icons.people),
+        ]),
+      ]),
     );
   }
 
-  Widget _buildStatCard({
-    required String label,
-    required int count,
-    required IconData icon,
-    required Color color,
-  }) {
+  Widget _buildStatCard(String label, int count, IconData icon) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -283,48 +215,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 4),
-            Text(
-              '$count',
+        child: Column(children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(height: 4),
+          Text('$count',
               style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 11,
-              ),
-            ),
-          ],
-        ),
+                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(label,
+              style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        ]),
       ),
     );
   }
 
-  // ─────────────────────────────────────────
-  // المحتوى الرئيسي
-  // ─────────────────────────────────────────
   Widget _buildBody() {
+    final colors = context.colors;
     if (_loading) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Colors.green.shade700),
-            const SizedBox(height: 16),
-            Text(
-              'جاري التحميل...',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ],
-        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          CircularProgressIndicator(color: Colors.green.shade600),
+          const SizedBox(height: 16),
+          Text('جاري التحميل...', style: TextStyle(color: colors.textSecondary)),
+        ]),
       );
     }
 
@@ -332,25 +244,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline,
-                  size: 60, color: Colors.red.shade400),
-              const SizedBox(height: 16),
-              Text('خطأ: $_error', textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadData,
-                icon: const Icon(Icons.refresh),
-                label: const Text('إعادة المحاولة'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
-                ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.error_outline, size: 60, color: Colors.red.shade400),
+            const SizedBox(height: 16),
+            Text('خطأ: $_error',
+                textAlign: TextAlign.center, style: TextStyle(color: colors.textPrimary)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('إعادة المحاولة'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
               ),
-            ],
-          ),
+            ),
+          ]),
         ),
       );
     }
@@ -359,77 +268,63 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.group_off,
-                  size: 72, color: Colors.grey.shade400),
-              const SizedBox(height: 16),
-              const Text(
-                'لا يوجد تلاميذ في هذا القسم',
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.group_off, size: 72, color: colors.textTertiary),
+            const SizedBox(height: 16),
+            Text('لا يوجد تلاميذ في هذا القسم',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF37474F),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'أضف تلاميذاً أولاً من شاشة القسم',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-              ),
-            ],
-          ),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary)),
+            const SizedBox(height: 8),
+            Text('أضف تلاميذاً أولاً من شاشة القسم',
+                style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+          ]),
         ),
       );
     }
 
     return RefreshIndicator(
       onRefresh: _loadData,
-      color: Colors.green.shade700,
+      color: Colors.green.shade600,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _students.length,
-        itemBuilder: (context, index) {
-          final student = _students[index];
-          return _buildStudentRow(student, index);
-        },
+        itemBuilder: (context, index) => _buildStudentRow(_students[index], index),
       ),
     );
   }
 
   Widget _buildStudentRow(Student student, int index) {
+    final colors = context.colors;
     final status = _records[student.id];
     final isPresent = status == 'PRESENT';
     final isAbsent = status == 'ABSENT';
     final isUnset = status == null;
 
+    final borderColor = isPresent
+        ? Colors.green.shade300
+        : isAbsent
+            ? Colors.red.shade300
+            : colors.cardBorder;
+
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 250 + (index * 30)),
       tween: Tween(begin: 0.0, end: 1.0),
       curve: Curves.easeOut,
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 15 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
+      builder: (context, value, child) => Transform.translate(
+        offset: Offset(0, 15 * (1 - value)),
+        child: Opacity(opacity: value, child: child),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.cardBg,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isPresent
-                ? Colors.green.shade300
-                : isAbsent
-                    ? Colors.red.shade300
-                    : Colors.grey.shade200,
-            width: 1.5,
-          ),
+          border: Border.all(color: borderColor, width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withOpacity(context.isDark ? 0.2 : 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -437,125 +332,88 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // الاسم
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      student.fullName,
-                      style: const TextStyle(
+          child: Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(student.fullName,
+                    style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: Color(0xFF263238),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isUnset
-                          ? 'لم يُحدَّد'
-                          : isPresent
-                              ? 'حاضر'
-                              : 'غائب',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isPresent
-                            ? Colors.green.shade700
-                            : isAbsent
-                                ? Colors.red.shade700
-                                : Colors.grey.shade500,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                        color: colors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(
+                  isUnset ? 'لم يُحدَّد' : isPresent ? 'حاضر' : 'غائب',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isPresent
+                        ? Colors.green.shade600
+                        : isAbsent
+                            ? Colors.red.shade600
+                            : colors.textTertiary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-
-              // أزرار التبديل
-              _buildToggleButton(
-                icon: Icons.check,
-                label: 'حاضر',
-                isActive: isPresent,
-                color: Colors.green,
-                onTap: () => _setStatus(student.id, 'PRESENT'),
-              ),
-              const SizedBox(width: 8),
-              _buildToggleButton(
-                icon: Icons.close,
-                label: 'غائب',
-                isActive: isAbsent,
-                color: Colors.red,
-                onTap: () => _setStatus(student.id, 'ABSENT'),
-              ),
-            ],
-          ),
+              ]),
+            ),
+            _buildToggle(
+              icon: Icons.check, label: 'حاضر',
+              isActive: isPresent, isGreen: true,
+              onTap: () => _setStatus(student.id, 'PRESENT'),
+            ),
+            const SizedBox(width: 8),
+            _buildToggle(
+              icon: Icons.close, label: 'غائب',
+              isActive: isAbsent, isGreen: false,
+              onTap: () => _setStatus(student.id, 'ABSENT'),
+            ),
+          ]),
         ),
       ),
     );
   }
 
-  Widget _buildToggleButton({
+  Widget _buildToggle({
     required IconData icon,
     required String label,
     required bool isActive,
-    required MaterialColor color,
+    required bool isGreen,
     required VoidCallback onTap,
   }) {
+    final color = isGreen ? Colors.green : Colors.red;
     return Material(
-      color: isActive ? color.shade600 : color.shade50,
+      color: isActive
+          ? color.shade600
+          : (context.isDark ? color.shade900.withOpacity(0.3) : color.shade50),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isActive ? Colors.white : color.shade700,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 18,
+                color: isActive ? Colors.white : color.shade400),
+            const SizedBox(width: 4),
+            Text(label,
                 style: TextStyle(
-                  color: isActive ? Colors.white : color.shade700,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
+                    color: isActive ? Colors.white : color.shade400,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13)),
+          ]),
         ),
       ),
     );
   }
 
-  void _setStatus(int studentId, String status) {
-    setState(() {
-      if (_records[studentId] == status) {
-        _records.remove(studentId);
-      } else {
-        _records[studentId] = status;
-      }
-    });
-  }
-
-  // ─────────────────────────────────────────
-  // الشريط السفلي: الأزرار
-  // ─────────────────────────────────────────
   Widget _buildBottomBar() {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.cardBg,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withOpacity(context.isDark ? 0.4 : 0.06),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -563,95 +421,43 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            // زر الكل حاضر
-            Expanded(
-              flex: 1,
-              child: OutlinedButton.icon(
-                onPressed: _saving ? null : _markAllPresent,
-                icon: const Icon(Icons.done_all, size: 18),
-                label: const Text('الكل حاضر'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.green.shade700,
-                  side: BorderSide(color: Colors.green.shade700, width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+        child: Row(children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: _saving ? null : _markAllPresent,
+              icon: const Icon(Icons.done_all, size: 18),
+              label: const Text('الكل حاضر'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green.shade600,
+                side: BorderSide(color: Colors.green.shade600, width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(width: 10),
-
-            // زر الحفظ
-            Expanded(
-              flex: 2,
-              child: ElevatedButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.save, size: 20),
-                label: Text(
-                  _saving ? 'جاري الحفظ...' : 'حفظ الحضور',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.save, size: 20),
+              label: Text(_saving ? 'جاري الحفظ...' : 'حفظ الحضور',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 2,
               ),
             ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
-  }
-
-  // ─────────────────────────────────────────
-  // تنسيق التاريخ بالعربية
-  // ─────────────────────────────────────────
-  String _formatDateArabic(DateTime d) {
-    const days = [
-      'الاثنين',
-      'الثلاثاء',
-      'الأربعاء',
-      'الخميس',
-      'الجمعة',
-      'السبت',
-      'الأحد'
-    ];
-    const months = [
-      'جانفي',
-      'فيفري',
-      'مارس',
-      'أفريل',
-      'ماي',
-      'جوان',
-      'جويلية',
-      'أوت',
-      'سبتمبر',
-      'أكتوبر',
-      'نوفمبر',
-      'ديسمبر'
-    ];
-    final dayName = days[d.weekday - 1];
-    final monthName = months[d.month - 1];
-    return '$dayName، ${d.day} $monthName ${d.year}';
   }
 }
