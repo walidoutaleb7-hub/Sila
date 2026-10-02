@@ -35,16 +35,26 @@ jobs:
           flutter create --platforms=android --project-name=sila --org=com.sila .
           rm -rf test
 
-      - name: Add INTERNET permission to AndroidManifest
+      - name: Add INTERNET permission
         working-directory: sila/app
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <application|' $MANIFEST
+
+      - name: Change app display name to SILA
+        working-directory: sila/app
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's|android:label="sila"|android:label="SILA"|g' $MANIFEST
           cat $MANIFEST
 
       - name: Get dependencies
         working-directory: sila/app
         run: flutter pub get
+
+      - name: Generate launcher icons
+        working-directory: sila/app
+        run: dart run flutter_launcher_icons
 
       - name: Build APK
         working-directory: sila/app
