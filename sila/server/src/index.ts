@@ -14,9 +14,9 @@ const asyncHandler = (fn: Function) =>
   (req: Request, res: Response, next: NextFunction) =>
     Promise.resolve(fn(req, res, next)).catch(next);
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 1. Health Check
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.get('/', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -25,9 +25,9 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 2. إنشاء قسم
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 const createClassSchema = z.object({
   name: z.string().min(1).max(50),
   level: z.string().min(1).max(20),
@@ -41,9 +41,9 @@ app.post('/api/classes', asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json({ success: true, data: newClass });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 3. جلب كل الأقسام
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.get('/api/classes', asyncHandler(async (req: Request, res: Response) => {
   const classes = await prisma.class.findMany({
     orderBy: { createdAt: 'desc' },
@@ -52,9 +52,9 @@ app.get('/api/classes', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: classes });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 4. إضافة تلميذ
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 const createStudentSchema = z.object({
   fullName: z.string().min(2).max(200),
 });
@@ -81,9 +81,9 @@ app.post('/api/classes/:classId/students', asyncHandler(async (req: Request, res
   res.status(201).json({ success: true, data: student });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 5. جلب تلاميذ قسم
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.get('/api/classes/:classId/students', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.params.classId));
   if (isNaN(classId)) {
@@ -99,9 +99,9 @@ app.get('/api/classes/:classId/students', asyncHandler(async (req: Request, res:
   res.json({ success: true, data: students });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 6. تسجيل الحضور
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 const attendanceSchema = z.object({
   classId: z.number().int().positive(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -126,9 +126,9 @@ app.post('/api/attendance', asyncHandler(async (req: Request, res: Response) => 
   res.json({ success: true, data: { saved: results.length, date: data.date } });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 7. جلب سجل الحضور ليوم
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.get('/api/attendance', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.query.classId));
   const dateStr = req.query.date as string;
@@ -158,9 +158,9 @@ app.get('/api/attendance', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: { classId, date: dateStr, students: result } });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 7.5. تعديل تلميذ
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 const updateStudentSchema = z.object({
   fullName: z.string().min(2).max(200),
 });
@@ -188,9 +188,9 @@ app.put('/api/students/:id', asyncHandler(async (req: Request, res: Response) =>
   res.json({ success: true, data: updated });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 7.6. حذف تلميذ
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.delete('/api/students/:id', asyncHandler(async (req: Request, res: Response) => {
   const studentId = parseInt(String(req.params.id));
   if (isNaN(studentId)) {
@@ -210,9 +210,9 @@ app.delete('/api/students/:id', asyncHandler(async (req: Request, res: Response)
   res.json({ success: true, data: { deletedId: studentId } });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 7.7. إحصائيات القسم
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.get('/api/classes/:id/stats', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.params.id));
   if (isNaN(classId)) {
@@ -294,10 +294,9 @@ app.get('/api/classes/:id/stats', asyncHandler(async (req: Request, res: Respons
   });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 7.8. إضافة/تحديث دفعة درجات
-// POST /api/grades
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 const bulkGradeSchema = z.object({
   classId: z.number().int().positive(),
   assessment: z.string().min(1).max(50),
@@ -315,7 +314,6 @@ app.post('/api/grades', asyncHandler(async (req: Request, res: Response) => {
   const data = bulkGradeSchema.parse(req.body);
   const gradeDate = new Date(data.date);
 
-  // نحذف أي درجات سابقة بنفس (التقييم + التاريخ) لنفس التلاميذ
   await prisma.grade.deleteMany({
     where: {
       classId: data.classId,
@@ -345,10 +343,9 @@ app.post('/api/grades', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: { saved: results.length } });
 }));
 
-// ─────────────────────────────────────
-// 7.9. جلب درجات القسم
-// GET /api/classes/:id/grades
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
+// 7.9. جلب درجات القسم (ملخص الجلسات)
+// ═══════════════════════════════════════════
 app.get('/api/classes/:id/grades', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.params.id));
   if (isNaN(classId)) {
@@ -363,7 +360,6 @@ app.get('/api/classes/:id/grades', asyncHandler(async (req: Request, res: Respon
     orderBy: [{ date: 'desc' }, { assessment: 'asc' }],
   });
 
-  // تجميع حسب (التقييم + التاريخ)
   const grouped: { [key: string]: any } = {};
   for (const g of grades) {
     const key = `${g.assessment}__${g.date.toISOString().split('T')[0]}`;
@@ -396,10 +392,62 @@ app.get('/api/classes/:id/grades', asyncHandler(async (req: Request, res: Respon
   res.json({ success: true, data: { sessions } });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
+// 7.9.5. جلب درجات جلسة محددة
+// ═══════════════════════════════════════════
+app.get('/api/grades/session', asyncHandler(async (req: Request, res: Response) => {
+  const classId = parseInt(String(req.query.classId));
+  const assessment = req.query.assessment as string;
+  const dateStr = req.query.date as string;
+
+  if (isNaN(classId) || !assessment || !dateStr) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'MISSING_PARAMS', message: 'معاملات ناقصة' },
+    });
+  }
+
+  const gradeDate = new Date(dateStr);
+
+  const grades = await prisma.grade.findMany({
+    where: {
+      classId,
+      assessment,
+      date: gradeDate,
+    },
+    include: {
+      student: {
+        select: { id: true, fullName: true },
+      },
+    },
+    orderBy: { student: { fullName: 'asc' } },
+  });
+
+  const records = grades.map(g => ({
+    studentId: g.studentId,
+    fullName: g.student.fullName,
+    score: g.score,
+    maxScore: g.maxScore,
+    coeff: g.coeff,
+    note: g.note,
+  }));
+
+  res.json({
+    success: true,
+    data: {
+      assessment,
+      date: dateStr,
+      maxScore: grades[0]?.maxScore ?? 20,
+      coeff: grades[0]?.coeff ?? 1,
+      note: grades[0]?.note ?? null,
+      records,
+    },
+  });
+}));
+
+// ═══════════════════════════════════════════
 // 7.10. جلب درجات تلميذ
-// GET /api/students/:id/grades
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Response) => {
   const studentId = parseInt(String(req.params.id));
   if (isNaN(studentId)) {
@@ -422,11 +470,10 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
     orderBy: { date: 'desc' },
   });
 
-  // معدل مرجح
   let totalWeighted = 0;
   let totalCoeff = 0;
   for (const g of grades) {
-    const pct = g.score / g.maxScore; // 0..1
+    const pct = g.score / g.maxScore;
     totalWeighted += pct * g.coeff;
     totalCoeff += g.coeff;
   }
@@ -434,7 +481,6 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
     ? Math.round((totalWeighted / totalCoeff) * 20 * 100) / 100
     : 0;
 
-  // تجميع حسب نوع التقييم
   const byAssessment: { [key: string]: { total: number; sum: number; count: number } } = {};
   for (const g of grades) {
     if (!byAssessment[g.assessment]) {
@@ -473,9 +519,9 @@ app.get('/api/students/:id/grades', asyncHandler(async (req: Request, res: Respo
   });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // 8. جلب سجل حضور تلميذ
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.get('/api/students/:id/attendance', asyncHandler(async (req: Request, res: Response) => {
   const studentId = parseInt(String(req.params.id));
   if (isNaN(studentId)) {
@@ -509,9 +555,9 @@ app.get('/api/students/:id/attendance', asyncHandler(async (req: Request, res: R
   });
 }));
 
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 // معالج الأخطاء
-// ─────────────────────────────────────
+// ═══════════════════════════════════════════
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('خطأ:', err);
   if (err.name === 'ZodError') {
