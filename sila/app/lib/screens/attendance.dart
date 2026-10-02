@@ -93,14 +93,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  // ✅ نستخدم ar-DZ = أرقام غربية
   Future<void> _pickDate() async {
-    // ✅ لا نُفرض ColorScheme - نستخدم ثيم التطبيق
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
-      locale: const Locale('ar'),
+      locale: const Locale('ar', 'DZ'),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
