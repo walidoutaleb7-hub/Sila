@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/api.dart';
 import 'students.dart';
@@ -46,10 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.green.shade700, size: 24),
             ),
             const SizedBox(width: 12),
-            const Text(
-              'قسم جديد',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('قسم جديد',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
@@ -111,13 +110,9 @@ class _HomeScreenState extends State<HomeScreen> {
           level: levelController.text.trim(),
         );
         _loadClasses();
-        if (mounted) {
-          _showSnack('تم إضافة القسم بنجاح', isError: false);
-        }
+        if (mounted) _showSnack('تم إضافة القسم بنجاح', isError: false);
       } catch (e) {
-        if (mounted) {
-          _showSnack('خطأ: $e', isError: true);
-        }
+        if (mounted) _showSnack('خطأ: $e', isError: true);
       }
     }
   }
@@ -127,10 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle,
-              color: Colors.white,
-            ),
+            Icon(isError ? Icons.error_outline : Icons.check_circle,
+                color: Colors.white),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
@@ -151,60 +144,17 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: CustomScrollView(
         slivers: [
-          // ═══════ AppBar بتدرج لوني ═══════
+          // ═══════ رأس التطبيق الراقي ═══════
           SliverAppBar(
-            expandedHeight: 160,
+            expandedHeight: 210,
             pinned: true,
-            backgroundColor: Colors.green.shade800,
+            backgroundColor: const Color(0xFF1B5E20),
             foregroundColor: Colors.white,
             flexibleSpace: FlexibleSpaceBar(
               titlePadding:
-                  const EdgeInsets.only(left: 56, right: 16, bottom: 16),
-              title: const Text(
-                'صلة',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 20,
-                ),
-              ),
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [
-                      Colors.green.shade800,
-                      Colors.green.shade500,
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: -40,
-                      right: -40,
-                      child: Icon(
-                        Icons.mosque,
-                        size: 220,
-                        color: Colors.white.withOpacity(0.08),
-                      ),
-                    ),
-                    const Positioned(
-                      bottom: 60,
-                      right: 20,
-                      child: Text(
-                        'المدرسة في جيبك',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+              title: const SizedBox.shrink(),
+              background: _buildHomeHeader(),
             ),
           ),
 
@@ -212,7 +162,6 @@ class _HomeScreenState extends State<HomeScreen> {
           FutureBuilder<List<SchoolClass>>(
             future: _classesFuture,
             builder: (context, snapshot) {
-              // ─── تحميل ───
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return SliverFillRemaining(
                   child: Center(
@@ -224,20 +173,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           strokeWidth: 3,
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          'جاري التحميل...',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                        ),
+                        Text('جاري التحميل...',
+                            style: TextStyle(
+                                color: Colors.grey.shade600, fontSize: 14)),
                       ],
                     ),
                   ),
                 );
               }
 
-              // ─── خطأ ───
               if (snapshot.hasError) {
                 return SliverFillRemaining(
                   child: Center(
@@ -252,29 +196,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.red.shade50,
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
-                              Icons.wifi_off_rounded,
-                              size: 56,
-                              color: Colors.red.shade400,
-                            ),
+                            child: Icon(Icons.wifi_off_rounded,
+                                size: 56, color: Colors.red.shade400),
                           ),
                           const SizedBox(height: 20),
-                          const Text(
-                            'تعذّر الاتصال',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          const Text('تعذّر الاتصال',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          Text(
-                            '${snapshot.error}',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 13,
-                            ),
-                          ),
+                          Text('${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: Colors.grey.shade600, fontSize: 13)),
                           const SizedBox(height: 20),
                           ElevatedButton.icon(
                             onPressed: _loadClasses,
@@ -299,7 +232,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
               final classes = snapshot.data ?? [];
 
-              // ─── فارغ ───
               if (classes.isEmpty) {
                 return SliverFillRemaining(
                   child: Center(
@@ -311,37 +243,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           Container(
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.green.shade50,
-                                  Colors.green.shade100,
-                                ],
-                              ),
+                              gradient: LinearGradient(colors: [
+                                Colors.green.shade50,
+                                Colors.green.shade100,
+                              ]),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
-                              Icons.school_outlined,
-                              size: 64,
-                              color: Colors.green.shade400,
-                            ),
+                            child: Icon(Icons.school_outlined,
+                                size: 64, color: Colors.green.shade400),
                           ),
                           const SizedBox(height: 20),
-                          const Text(
-                            'لا توجد أقسام بعد',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF37474F),
-                            ),
-                          ),
+                          const Text('لا توجد أقسام بعد',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF37474F),
+                              )),
                           const SizedBox(height: 8),
-                          Text(
-                            'اضغط زر + لإضافة أول قسم',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 14,
-                            ),
-                          ),
+                          Text('اضغط زر + لإضافة أول قسم',
+                              style: TextStyle(
+                                  color: Colors.grey.shade600, fontSize: 14)),
                         ],
                       ),
                     ),
@@ -349,7 +270,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
 
-              // ─── قائمة الأقسام ───
               return SliverPadding(
                 padding: const EdgeInsets.all(16),
                 sliver: SliverList(
@@ -368,14 +288,147 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text(
-          'قسم جديد',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        label: const Text('قسم جديد',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
 
+  // ═══════════════════════════════════════════
+  // رأس التطبيق الراقي - مدرسة 🏫
+  // ═══════════════════════════════════════════
+  Widget _buildHomeHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0D3B14),
+            Color(0xFF1B5E20),
+            Color(0xFF2E7D32),
+          ],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 🏫 المدرسة - رسم معماري
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: CustomPaint(
+              size: const Size(double.infinity, 130),
+              painter: _SchoolSilhouettePainter(
+                color: Colors.white.withOpacity(0.10),
+              ),
+            ),
+          ),
+
+          // لمعة خفيفة
+          Positioned(
+            top: -60,
+            right: -60,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.07),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // النص
+          Positioned(
+            top: 0,
+            right: 24,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // شعار "صلة"
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'صلة',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.handshake_outlined,
+                              color: Colors.white, size: 20),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // السطر الأول
+                    const Text(
+                      'المدرسة في جيبك',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // السطر الثاني
+                    Text(
+                      'والتواصل في يدك',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.85),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // بطاقة القسم
+  // ═══════════════════════════════════════════
   Widget _buildClassCard(SchoolClass c, int index) {
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 300 + (index * 60)),
@@ -410,13 +463,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(
                   builder: (_) => StudentsScreen(schoolClass: c),
                 ),
-              ).then((_) => _loadClasses()); // تحديث العدد عند العودة
+              ).then((_) => _loadClasses());
             },
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // أيقونة القسم
                   Container(
                     width: 56,
                     height: 56,
@@ -438,68 +490,45 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.class_,
-                      color: Colors.white,
-                      size: 28,
-                    ),
+                    child: const Icon(Icons.class_,
+                        color: Colors.white, size: 28),
                   ),
                   const SizedBox(width: 14),
-
-                  // معلومات القسم
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          c.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 17,
-                            color: Color(0xFF263238),
-                          ),
-                        ),
+                        Text(c.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 17,
+                              color: Color(0xFF263238),
+                            )),
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            Icon(
-                              Icons.signal_cellular_alt,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
+                            Icon(Icons.signal_cellular_alt,
+                                size: 14, color: Colors.grey.shade500),
                             const SizedBox(width: 4),
-                            Text(
-                              c.level,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
-                              ),
-                            ),
+                            Text(c.level,
+                                style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13)),
                             const SizedBox(width: 12),
-                            Icon(
-                              Icons.people_outline,
-                              size: 14,
-                              color: Colors.grey.shade500,
-                            ),
+                            Icon(Icons.people_outline,
+                                size: 14, color: Colors.grey.shade500),
                             const SizedBox(width: 4),
-                            Text(
-                              '${c.studentsCount} تلميذ',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
-                              ),
-                            ),
+                            Text('${c.studentsCount} تلميذ',
+                                style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13)),
                           ],
                         ),
                       ],
                     ),
                   ),
-
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.grey.shade400,
-                  ),
+                  Icon(Icons.arrow_forward_ios,
+                      size: 16, color: Colors.grey.shade400),
                 ],
               ),
             ),
@@ -507,5 +536,113 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 🏫 رسم المدرسة - مبنى أكاديمي معماري راقٍ
+// ═══════════════════════════════════════════════════════
+class _SchoolSilhouettePainter extends CustomPainter {
+  final Color color;
+
+  _SchoolSilhouettePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final w = size.width;
+    final h = size.height;
+
+    // ─── المبنى الرئيسي (مستطيل كبير) ───
+    final mainBuilding = Path()
+      ..moveTo(w * 0.15, h * 0.40)
+      ..lineTo(w * 0.85, h * 0.40)
+      ..lineTo(w * 0.85, h * 1.0)
+      ..lineTo(w * 0.15, h * 1.0)
+      ..close();
+    canvas.drawPath(mainBuilding, paint);
+
+    // ─── السقف المثلث (الجزء الأوسط المرتفع) ───
+    final roof = Path()
+      ..moveTo(w * 0.15, h * 0.40)
+      ..lineTo(w * 0.50, h * 0.10)
+      ..lineTo(w * 0.85, h * 0.40)
+      ..close();
+    canvas.drawPath(roof, paint);
+
+    // ─── القبة الصغيرة فوق السقف (رمز أكاديمي) ───
+    final smallDome = Path()
+      ..addOval(Rect.fromCircle(
+        center: Offset(w * 0.50, h * 0.10),
+        radius: w * 0.025,
+      ));
+    canvas.drawPath(smallDome, paint);
+
+    // ─── سارية العلم على القمة ───
+    final flagPole = Rect.fromLTWH(w * 0.495, h * 0.02, w * 0.01, h * 0.08);
+    canvas.drawRect(flagPole, paint);
+
+    // ─── النوافذ (مستطيلات صغيرة) ───
+    final windowPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // صف النوافذ الأول
+    for (int i = 0; i < 5; i++) {
+      final windowRect = Rect.fromLTWH(
+        w * 0.22 + (i * w * 0.12),
+        h * 0.52,
+        w * 0.06,
+        h * 0.12,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(windowRect, const Radius.circular(2)),
+        windowPaint,
+      );
+    }
+
+    // صف النوافذ الثاني
+    for (int i = 0; i < 5; i++) {
+      final windowRect = Rect.fromLTWH(
+        w * 0.22 + (i * w * 0.12),
+        h * 0.72,
+        w * 0.06,
+        h * 0.12,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(windowRect, const Radius.circular(2)),
+        windowPaint,
+      );
+    }
+
+    // ─── الباب الرئيسي (في الوسط) ───
+    final door = Path()
+      ..moveTo(w * 0.44, h * 1.0)
+      ..lineTo(w * 0.44, h * 0.88)
+      ..quadraticBezierTo(w * 0.50, h * 0.80, w * 0.56, h * 0.88)
+      ..lineTo(w * 0.56, h * 1.0)
+      ..close();
+    canvas.drawPath(door, paint);
+
+    // ─── أعمدة جانبية (للرقي المعماري) ───
+    final leftPillar =
+        Rect.fromLTWH(w * 0.13, h * 0.42, w * 0.025, h * 0.58);
+    canvas.drawRect(leftPillar, paint);
+
+    final rightPillar =
+        Rect.fromLTWH(w * 0.845, h * 0.42, w * 0.025, h * 0.58);
+    canvas.drawRect(rightPillar, paint);
+
+    // ─── قاعدة أمامية (سلّم خفيف) ───
+    final baseStep = Rect.fromLTWH(w * 0.10, h * 0.97, w * 0.80, h * 0.03);
+    canvas.drawRect(baseStep, paint);
+  }
+
+  @override
+  bool shouldRepaint(_SchoolSilhouettePainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
