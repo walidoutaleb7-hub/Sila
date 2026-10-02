@@ -8,7 +8,8 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+// نرفع حجم الـ body للصور
+app.use(express.json({ limit: '5mb' }));
 
 const asyncHandler = (fn: Function) =>
   (req: Request, res: Response, next: NextFunction) =>
@@ -153,6 +154,7 @@ app.get('/api/attendance', asyncHandler(async (req: Request, res: Response) => {
   const result = students.map((s) => ({
     studentId: s.id,
     fullName: s.fullName,
+    photoUrl: s.photoUrl,
     status: s.attendance[0]?.status || null,
   }));
   res.json({ success: true, data: { classId, date: dateStr, students: result } });
@@ -184,6 +186,63 @@ app.put('/api/students/:id', asyncHandler(async (req: Request, res: Response) =>
   const updated = await prisma.student.update({
     where: { id: studentId },
     data: { fullName: data.fullName },
+  });
+  res.json({ success: true, data: updated });
+}));
+
+// ═══════════════════════════════════════════
+// 7.5.1. تحديث صورة تلميذ
+// PUT /api/students/:id/photo
+// ═══════════════════════════════════════════
+const updatePhotoSchema = z.object({
+  photoUrl: z.string().min(1).max(5_000_000), // حد 5MB للـ base64
+});
+
+app.put('/api/students/:id/photo', asyncHandler(async (req: Request, res: Response) => {
+  const studentId = parseInt(String(req.params.id));
+  if (isNaN(studentId)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
+    });
+  }
+  const data = updatePhotoSchema.parse(req.body);
+  const student = await prisma.student.findUnique({ where: { id: studentId } });
+  if (!student) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
+    });
+  }
+  const updated = await prisma.student.update({
+    where: { id: studentId },
+    data: { photoUrl: data.photoUrl },
+  });
+  res.json({ success: true, data: updated });
+}));
+
+// ═══════════════════════════════════════════
+// 7.5.2. حذف صورة تلميذ
+// DELETE /api/students/:id/photo
+// ═══════════════════════════════════════════
+app.delete('/api/students/:id/photo', asyncHandler(async (req: Request, res: Response) => {
+  const studentId = parseInt(String(req.params.id));
+  if (isNaN(studentId)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_STUDENT_ID', message: 'رقم التلميذ غير صحيح' },
+    });
+  }
+  const student = await prisma.student.findUnique({ where: { id: studentId } });
+  if (!student) {
+    return res.status(404).json({
+      success: false,
+      error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
+    });
+  }
+  const updated = await prisma.student.update({
+    where: { id: studentId },
+    data: { photoUrl: null },
   });
   res.json({ success: true, data: updated });
 }));
@@ -344,7 +403,7 @@ app.post('/api/grades', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // ═══════════════════════════════════════════
-// 7.9. جلب درجات القسم (ملخص)
+// 7.9. جلب درجات القسم
 // ═══════════════════════════════════════════
 app.get('/api/classes/:id/grades', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.params.id));
@@ -543,8 +602,7 @@ app.get('/api/students/:id/attendance', asyncHandler(async (req: Request, res: R
 }));
 
 // ═══════════════════════════════════════════
-// 8. إنشاء ملاحظة
-// POST /api/notes
+// 8. الملاحظات
 // ═══════════════════════════════════════════
 const createNoteSchema = z.object({
   classId: z.number().int().positive(),
@@ -558,7 +616,6 @@ const createNoteSchema = z.object({
 app.post('/api/notes', asyncHandler(async (req: Request, res: Response) => {
   const data = createNoteSchema.parse(req.body);
   const noteDate = new Date(data.date);
-
   const note = await prisma.note.create({
     data: {
       classId: data.classId,
@@ -569,14 +626,9 @@ app.post('/api/notes', asyncHandler(async (req: Request, res: Response) => {
       date: noteDate,
     },
   });
-
   res.status(201).json({ success: true, data: note });
 }));
 
-// ═══════════════════════════════════════════
-// 8.1. جلب ملاحظات القسم (مذكرات الحصص + كل الملاحظات)
-// GET /api/classes/:id/notes
-// ═══════════════════════════════════════════
 app.get('/api/classes/:id/notes', asyncHandler(async (req: Request, res: Response) => {
   const classId = parseInt(String(req.params.id));
   if (isNaN(classId)) {
@@ -589,9 +641,7 @@ app.get('/api/classes/:id/notes', asyncHandler(async (req: Request, res: Respons
   const notes = await prisma.note.findMany({
     where: { classId },
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-    include: {
-      student: { select: { id: true, fullName: true } },
-    },
+    include: { student: { select: { id: true, fullName: true } } },
   });
 
   res.json({
@@ -610,10 +660,6 @@ app.get('/api/classes/:id/notes', asyncHandler(async (req: Request, res: Respons
   });
 }));
 
-// ═══════════════════════════════════════════
-// 8.2. جلب ملاحظات تلميذ
-// GET /api/students/:id/notes
-// ═══════════════════════════════════════════
 app.get('/api/students/:id/notes', asyncHandler(async (req: Request, res: Response) => {
   const studentId = parseInt(String(req.params.id));
   if (isNaN(studentId)) {
@@ -647,10 +693,6 @@ app.get('/api/students/:id/notes', asyncHandler(async (req: Request, res: Respon
   });
 }));
 
-// ═══════════════════════════════════════════
-// 8.3. حذف ملاحظة
-// DELETE /api/notes/:id
-// ═══════════════════════════════════════════
 app.delete('/api/notes/:id', asyncHandler(async (req: Request, res: Response) => {
   const noteId = parseInt(String(req.params.id));
   if (isNaN(noteId)) {
@@ -659,7 +701,6 @@ app.delete('/api/notes/:id', asyncHandler(async (req: Request, res: Response) =>
       error: { code: 'INVALID_NOTE_ID', message: 'رقم الملاحظة غير صحيح' },
     });
   }
-
   const note = await prisma.note.findUnique({ where: { id: noteId } });
   if (!note) {
     return res.status(404).json({
@@ -667,7 +708,6 @@ app.delete('/api/notes/:id', asyncHandler(async (req: Request, res: Response) =>
       error: { code: 'NOTE_NOT_FOUND', message: 'الملاحظة غير موجودة' },
     });
   }
-
   await prisma.note.delete({ where: { id: noteId } });
   res.json({ success: true, data: { deletedId: noteId } });
 }));
