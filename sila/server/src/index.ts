@@ -78,8 +78,8 @@ const registerSchema = z.object({
   password: z.string().min(6).max(100),
   fullName: z.string().min(2).max(200),
   schoolName: z.string().max(200).optional().nullable(),
-  securityQuestion: z.string().min(5).max(200),
-  securityAnswer: z.string().min(2).max(200),
+  securityQuestion: z.string().min(5).max(200).optional().nullable(),
+  securityAnswer: z.string().min(2).max(200).optional().nullable(),
 });
 
 app.post(
@@ -98,10 +98,14 @@ app.post(
     }
 
     const passwordHash = await bcrypt.hash(data.password, 10);
-    const securityAnswerHash = await bcrypt.hash(
-      data.securityAnswer.trim().toLowerCase(),
-      10,
-    );
+
+    let securityAnswerHash: string | null = null;
+    if (data.securityAnswer && data.securityAnswer.trim().length >= 2) {
+      securityAnswerHash = await bcrypt.hash(
+        data.securityAnswer.trim().toLowerCase(),
+        10,
+      );
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -109,7 +113,7 @@ app.post(
         passwordHash,
         fullName: data.fullName,
         schoolName: data.schoolName || null,
-        securityQuestion: data.securityQuestion.trim(),
+        securityQuestion: data.securityQuestion?.trim() || null,
         securityAnswerHash,
       },
     });
@@ -408,13 +412,12 @@ app.post(
   }),
 );
 
-// ─── دالة: حساب الغياب المتتالي (يوم بيوم) ───
+// ─── دالة: حساب الغياب المتتالي ───
 function computeConsecutiveAbsences(
   records: { date: Date; period: string; status: string }[],
 ): number {
   if (records.length === 0) return 0;
 
-  // تجميع حسب اليوم
   const byDay = new Map<string, { hasPresent: boolean; hasAbsent: boolean }>();
   for (const r of records) {
     const key = new Date(r.date).toISOString().split('T')[0];
@@ -426,15 +429,11 @@ function computeConsecutiveAbsences(
     if (r.status === 'ABSENT') day.hasAbsent = true;
   }
 
-  // ترتيب الأيام تنازلياً
-  const sortedDays = [...byDay.entries()]
-    .sort((a, b) => (a[0] > b[0] ? -1 : 1));
+  const sortedDays = [...byDay.entries()].sort((a, b) => (a[0] > b[0] ? -1 : 1));
 
-  // عدّ الأيام المتتالية التي كان فيها غياب (بدون حضور)
   let count = 0;
   let prevDate: Date | null = null;
   for (const [dateStr, day] of sortedDays) {
-    // يوم "غياب كامل" = فيه غياب وليس فيه حضور
     const isFullAbsenceDay = day.hasAbsent && !day.hasPresent;
     if (!isFullAbsenceDay) break;
 
@@ -608,7 +607,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 6. تعديل التلميذ
+// 6. تعديل/حذف تلميذ
 // ═══════════════════════════════════════════
 const updateStudentSchema = z.object({
   fullName: z.string().min(2).max(200),
@@ -733,7 +732,7 @@ app.delete(
 );
 
 // ═══════════════════════════════════════════
-// 7. إحصائيات القسم (مع period)
+// 7. إحصائيات القسم
 // ═══════════════════════════════════════════
 app.get(
   '/api/classes/:id/stats',
@@ -768,8 +767,7 @@ app.get(
     const total = allAttendance.length;
     const present = allAttendance.filter((a) => a.status === 'PRESENT').length;
     const absent = allAttendance.filter((a) => a.status === 'ABSENT').length;
-    const overallRate =
-      total > 0 ? Math.round((present / total) * 100) : 0;
+    const overallRate = total > 0 ? Math.round((present / total) * 100) : 0;
 
     const last7Days: { date: string; present: number; absent: number }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -1083,7 +1081,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 9. سجل حضور تلميذ (مع period)
+// 9. سجل حضور تلميذ
 // ═══════════════════════════════════════════
 app.get(
   '/api/students/:id/attendance',
@@ -1278,8 +1276,6 @@ app.delete(
 // ═══════════════════════════════════════════
 // 11. جدول الأسبوع
 // ═══════════════════════════════════════════
-
-// ─── إنشاء حصة في الجدول ───
 const createScheduleSchema = z.object({
   classId: z.number().int().positive(),
   dayOfWeek: z.number().int().min(1).max(7),
@@ -1301,7 +1297,6 @@ app.post(
       });
     }
 
-    // تحقق: startTime قبل endTime
     if (data.startTime >= data.endTime) {
       return res.status(400).json({
         success: false,
@@ -1312,7 +1307,6 @@ app.post(
       });
     }
 
-    // تحقق: لا يوجد تعارض في نفس اليوم
     const conflict = await prisma.schedule.findFirst({
       where: {
         userId: req.userId!,
@@ -1356,7 +1350,6 @@ app.post(
   }),
 );
 
-// ─── جلب كل الجدول ───
 app.get(
   '/api/schedule',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -1373,7 +1366,6 @@ app.get(
   }),
 );
 
-// ─── جلب جدول يوم محدد ───
 app.get(
   '/api/schedule/day/:dayOfWeek',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -1395,13 +1387,10 @@ app.get(
   }),
 );
 
-// ─── الحصة الحالية (الآن) ───
 app.get(
   '/api/schedule/current',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const now = new Date();
-    // Dart format: 1=Monday ... 7=Sunday
-    // JS: 0=Sunday ... 6=Saturday
     const jsDay = now.getDay();
     const dartDay = jsDay === 0 ? 7 : jsDay;
     const hh = now.getHours().toString().padStart(2, '0');
@@ -1420,7 +1409,6 @@ app.get(
       },
     });
 
-    // الحصة القادمة (اليوم)
     const next = await prisma.schedule.findFirst({
       where: {
         userId: req.userId!,
@@ -1440,7 +1428,6 @@ app.get(
   }),
 );
 
-// ─── حذف حصة ───
 app.delete(
   '/api/schedule/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
