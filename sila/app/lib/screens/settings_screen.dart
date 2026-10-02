@@ -85,6 +85,13 @@ class SettingsScreen extends StatelessWidget {
                     title: 'الوصف',
                     value: 'المدرسة في جيبك، والتواصل في يدك',
                   ),
+                  _divider(context),
+                  _infoTile(
+                    context,
+                    icon: Icons.person_outline,
+                    title: 'المطوّر',
+                    value: 'أوطالب وليد',
+                  ),
                 ],
               ),
               const SizedBox(height: 30),
@@ -94,33 +101,92 @@ class SettingsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Container(
-                      width: 50,
-                      height: 50,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
                         ),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: const Center(
                         child: Text(
                           'ص',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 28,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
                     Text(
-                      'صُنع بحب في الجزائر 🇩🇿',
+                      'SILA',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: colors.textPrimary,
+                        letterSpacing: 4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'صُنع بحب في الجزائر',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'من طرف أوطالب وليد 🇩🇿',
                       style: TextStyle(
                         color: colors.textTertiary,
                         fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: context.isDark
+                            ? const Color(0xFF1B3A1E)
+                            : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.favorite,
+                            size: 14,
+                            color: Colors.red.shade400,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'الإصدار 1.0.0',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: context.isDark
+                                  ? const Color(0xFF81C784)
+                                  : Colors.green.shade700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -163,7 +229,8 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _settingsCard(BuildContext context, {required List<Widget> children}) {
+  Widget _settingsCard(BuildContext context,
+      {required List<Widget> children}) {
     final colors = context.colors;
     return Container(
       decoration: BoxDecoration(
@@ -219,8 +286,8 @@ class SettingsScreen extends StatelessWidget {
                       color: colors.textPrimary)),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style: TextStyle(
-                      fontSize: 11, color: colors.textTertiary)),
+                  style:
+                      TextStyle(fontSize: 11, color: colors.textTertiary)),
             ],
           ),
         ),
@@ -256,7 +323,9 @@ class SettingsScreen extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected ? Colors.green.shade400 : colors.cardBorder,
+                color: selected
+                    ? Colors.green.shade400
+                    : colors.cardBorder,
                 width: selected ? 1.5 : 1,
               ),
             ),
@@ -327,8 +396,8 @@ class SettingsScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: TextStyle(
-                      fontSize: 12, color: colors.textTertiary)),
+                  style:
+                      TextStyle(fontSize: 12, color: colors.textTertiary)),
               const SizedBox(height: 3),
               Text(value,
                   style: TextStyle(
