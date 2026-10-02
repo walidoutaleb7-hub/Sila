@@ -132,19 +132,126 @@ class AttendanceRecord {
 }
 
 // ═══════════════════════════════════════════
-// خدمة الاتصال بالخادم
+// نماذج الإحصائيات
+// ═══════════════════════════════════════════
+class ClassStats {
+  final String className;
+  final String classLevel;
+  final int totalStudents;
+  final OverallStats overall;
+  final TodayStats today;
+  final List<DayStat> last7Days;
+  final List<StudentRank> topStudents;
+  final List<StudentRank> worstStudents;
+
+  ClassStats({
+    required this.className,
+    required this.classLevel,
+    required this.totalStudents,
+    required this.overall,
+    required this.today,
+    required this.last7Days,
+    required this.topStudents,
+    required this.worstStudents,
+  });
+
+  factory ClassStats.fromJson(Map<String, dynamic> json) {
+    return ClassStats(
+      className: json['className'] as String,
+      classLevel: json['classLevel'] as String,
+      totalStudents: json['totalStudents'] as int,
+      overall: OverallStats.fromJson(json['overall']),
+      today: TodayStats.fromJson(json['today']),
+      last7Days: (json['last7Days'] as List)
+          .map((e) => DayStat.fromJson(e))
+          .toList(),
+      topStudents: (json['topStudents'] as List)
+          .map((e) => StudentRank.fromJson(e))
+          .toList(),
+      worstStudents: (json['worstStudents'] as List)
+          .map((e) => StudentRank.fromJson(e))
+          .toList(),
+    );
+  }
+}
+
+class OverallStats {
+  final int total;
+  final int present;
+  final int absent;
+  final int rate;
+  OverallStats({
+    required this.total,
+    required this.present,
+    required this.absent,
+    required this.rate,
+  });
+  factory OverallStats.fromJson(Map<String, dynamic> json) => OverallStats(
+        total: json['total'] as int,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+        rate: json['rate'] as int,
+      );
+}
+
+class TodayStats {
+  final int present;
+  final int absent;
+  TodayStats({required this.present, required this.absent});
+  factory TodayStats.fromJson(Map<String, dynamic> json) => TodayStats(
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+      );
+}
+
+class DayStat {
+  final String date;
+  final int present;
+  final int absent;
+  DayStat({required this.date, required this.present, required this.absent});
+  factory DayStat.fromJson(Map<String, dynamic> json) => DayStat(
+        date: json['date'] as String,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+      );
+}
+
+class StudentRank {
+  final int id;
+  final String fullName;
+  final int present;
+  final int absent;
+  final int total;
+  final int rate;
+  StudentRank({
+    required this.id,
+    required this.fullName,
+    required this.present,
+    required this.absent,
+    required this.total,
+    required this.rate,
+  });
+  factory StudentRank.fromJson(Map<String, dynamic> json) => StudentRank(
+        id: json['id'] as int,
+        fullName: json['fullName'] as String,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+        total: json['total'] as int,
+        rate: json['rate'] as int,
+      );
+}
+
+// ═══════════════════════════════════════════
+// خدمة الاتصال
 // ═══════════════════════════════════════════
 class ApiService {
   static const String _baseUrl = AppConfig.apiBaseUrl;
 
-  // ─────────────────────────────────────────
-  // الأقسام
-  // ─────────────────────────────────────────
+  // ───────── الأقسام ─────────
   static Future<List<SchoolClass>> getClasses() async {
     final response = await http
         .get(Uri.parse('$_baseUrl/api/classes'))
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -166,7 +273,6 @@ class ApiService {
           body: jsonEncode({'name': name, 'level': level}),
         )
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 201) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -179,14 +285,11 @@ class ApiService {
     throw Exception('فشل إنشاء القسم');
   }
 
-  // ─────────────────────────────────────────
-  // التلاميذ
-  // ─────────────────────────────────────────
+  // ───────── التلاميذ ─────────
   static Future<List<Student>> getStudents(int classId) async {
     final response = await http
         .get(Uri.parse('$_baseUrl/api/classes/$classId/students'))
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -208,7 +311,6 @@ class ApiService {
           body: jsonEncode({'fullName': fullName}),
         )
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 201) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -218,7 +320,6 @@ class ApiService {
     throw Exception('فشل إضافة التلميذ');
   }
 
-  /// تعديل اسم تلميذ
   static Future<Student> updateStudent({
     required int studentId,
     required String fullName,
@@ -230,7 +331,6 @@ class ApiService {
           body: jsonEncode({'fullName': fullName}),
         )
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -240,23 +340,19 @@ class ApiService {
     throw Exception('فشل تعديل التلميذ');
   }
 
-  /// حذف تلميذ
   static Future<void> deleteStudent(int studentId) async {
     final response = await http
         .delete(Uri.parse('$_baseUrl/api/students/$studentId'))
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode != 200) {
       throw Exception('فشل حذف التلميذ');
     }
   }
 
-  /// جلب سجل حضور تلميذ
   static Future<StudentHistory> getStudentHistory(int studentId) async {
     final response = await http
         .get(Uri.parse('$_baseUrl/api/students/$studentId/attendance'))
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -266,9 +362,21 @@ class ApiService {
     throw Exception('فشل جلب سجل التلميذ');
   }
 
-  // ─────────────────────────────────────────
-  // الحضور
-  // ─────────────────────────────────────────
+  /// جلب إحصائيات القسم
+  static Future<ClassStats> getClassStats(int classId) async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/stats'))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return ClassStats.fromJson(body['data']);
+      }
+    }
+    throw Exception('فشل جلب الإحصائيات');
+  }
+
+  // ───────── الحضور ─────────
   static Future<int> saveAttendance({
     required int classId,
     required DateTime date,
@@ -278,7 +386,6 @@ class ApiService {
     final recordsList = records.entries
         .map((e) => {'studentId': e.key, 'status': e.value})
         .toList();
-
     final response = await http
         .post(
           Uri.parse('$_baseUrl/api/attendance'),
@@ -290,7 +397,6 @@ class ApiService {
           }),
         )
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -309,7 +415,6 @@ class ApiService {
         .get(Uri.parse(
             '$_baseUrl/api/attendance?classId=$classId&date=$dateStr'))
         .timeout(const Duration(seconds: 60));
-
     if (response.statusCode == 200) {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body['success'] == true) {
@@ -320,9 +425,7 @@ class ApiService {
     throw Exception('فشل جلب سجل الحضور');
   }
 
-  // ─────────────────────────────────────────
-  // أدوات
-  // ─────────────────────────────────────────
+  // ───────── أدوات ─────────
   static String _formatDate(DateTime d) {
     final y = d.year.toString().padLeft(4, '0');
     final m = d.month.toString().padLeft(2, '0');
@@ -331,29 +434,14 @@ class ApiService {
   }
 
   static String formatDateArabic(DateTime d) {
-    const days = [
-      'الاثنين',
-      'الثلاثاء',
-      'الأربعاء',
-      'الخميس',
-      'الجمعة',
-      'السبت',
-      'الأحد'
-    ];
-    const months = [
-      'جانفي',
-      'فيفري',
-      'مارس',
-      'أفريل',
-      'ماي',
-      'جوان',
-      'جويلية',
-      'أوت',
-      'سبتمبر',
-      'أكتوبر',
-      'نوفمبر',
-      'ديسمبر'
-    ];
+    const days = ['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
+    const months = ['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
     return '${days[d.weekday - 1]}، ${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  static String formatShortDate(String dateStr) {
+    final d = DateTime.parse(dateStr);
+    const months = ['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    return '${d.day} ${months[d.month - 1]}';
   }
 }
