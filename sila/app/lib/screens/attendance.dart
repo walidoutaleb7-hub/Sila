@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
+import '../shared/widgets/student_avatar.dart';
 import '../theme/app_theme.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -88,7 +89,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     } catch (e) {
       _showSnack('فشل الحفظ: $e', isError: true);
     } finally {
-      setState(() => _saving = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -331,20 +332,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Row(children: [
+            // صورة التلميذ
+            StudentAvatar(
+              studentId: student.id,
+              fullName: student.fullName,
+              photoBase64: student.photoUrl,
+              size: 44,
+              borderRadius: 12,
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(student.fullName,
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 14,
                         color: colors.textPrimary)),
                 const SizedBox(height: 2),
                 Text(
                   isUnset ? 'لم يُحدَّد' : isPresent ? 'حاضر' : 'غائب',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: isPresent
                         ? Colors.green.shade600
                         : isAbsent
@@ -360,7 +370,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               isActive: isPresent, isGreen: true,
               onTap: () => _setStatus(student.id, 'PRESENT'),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             _buildToggle(
               icon: Icons.close, label: 'غائب',
               isActive: isAbsent, isGreen: false,
@@ -389,16 +399,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 18,
+            Icon(icon, size: 16,
                 color: isActive ? Colors.white : color.shade400),
             const SizedBox(width: 4),
             Text(label,
                 style: TextStyle(
                     color: isActive ? Colors.white : color.shade400,
                     fontWeight: FontWeight.bold,
-                    fontSize: 13)),
+                    fontSize: 12)),
           ]),
         ),
       ),
