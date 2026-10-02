@@ -34,51 +34,114 @@ class _StudentsScreenState extends State<StudentsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
         ),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.person_add,
-                  color: Colors.green.shade700, size: 24),
+              child: const Icon(
+                Icons.person_add_alt_1_outlined,
+                color: Color(0xFF2E7D32),
+                size: 22,
+              ),
             ),
             const SizedBox(width: 12),
-            const Text('إضافة تلميذ',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'إضافة تلميذ',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Color(0xFF263238),
+              ),
+            ),
           ],
         ),
         content: TextField(
           controller: nameController,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
+          textInputAction: TextInputAction.done,
           decoration: InputDecoration(
             labelText: 'الاسم الكامل',
             hintText: 'مثال: أحمد بن علي',
-            prefixIcon: const Icon(Icons.person_outline),
+            hintStyle: TextStyle(
+              color: Colors.grey.shade400,
+              fontSize: 13,
+            ),
+            labelStyle: const TextStyle(
+              color: Color(0xFF2E7D32),
+              fontWeight: FontWeight.w600,
+            ),
+            prefixIcon: Icon(
+              Icons.badge_outlined,
+              color: Colors.green.shade400,
+              size: 20,
+            ),
+            filled: true,
+            fillColor: const Color(0xFFF8FAF9),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: Colors.green.shade100,
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: Colors.green.shade300,
+                width: 1.5,
+              ),
             ),
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey.shade600,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+            ),
+            child: const Text(
+              'إلغاء',
+              style: TextStyle(fontSize: 14),
+            ),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.check, size: 18),
-            label: const Text('إضافة'),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text(
+              'إضافة',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
+              backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+              elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
@@ -149,7 +212,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: CustomScrollView(
         slivers: [
-          // ═══════ AppBar راقٍ بدون تداخل ═══════
           SliverAppBar(
             expandedHeight: 150,
             pinned: true,
@@ -179,7 +241,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
                 child: Stack(
                   children: [
-                    // أيقونة مدرسة خفيفة في الخلفية (على اليسار)
                     Positioned(
                       top: -20,
                       left: -40,
@@ -189,8 +250,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         color: Colors.white.withOpacity(0.07),
                       ),
                     ),
-
-                    // شارة المستوى (أسفل يسار)
                     Positioned(
                       bottom: 20,
                       left: 20,
@@ -263,7 +322,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ],
           ),
 
-          // ═══════ شريط عدد التلاميذ ═══════
           SliverToBoxAdapter(
             child: FutureBuilder<List<Student>>(
               future: _studentsFuture,
@@ -304,7 +362,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ),
           ),
 
-          // ═══════ قائمة التلاميذ ═══════
           FutureBuilder<List<Student>>(
             future: _studentsFuture,
             builder: (context, snapshot) {
