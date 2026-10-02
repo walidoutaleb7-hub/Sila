@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api.dart';
 import '../theme/app_theme.dart';
 import 'attendance.dart';
+import 'stats.dart';
 import 'student_detail.dart';
 
 class StudentsScreen extends StatefulWidget {
@@ -164,8 +165,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               elevation: 0,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -289,6 +289,11 @@ class _StudentsScreenState extends State<StudentsScreen> {
         MaterialPageRoute(builder: (_) => AttendanceScreen(schoolClass: widget.schoolClass)));
   }
 
+  void _goToStats() {
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => StatsScreen(schoolClass: widget.schoolClass)));
+  }
+
   void _goToStudentDetail(Student student) {
     Navigator.push(context,
         MaterialPageRoute(builder: (_) => StudentDetailScreen(student: student)))
@@ -354,6 +359,23 @@ class _StudentsScreenState extends State<StudentsScreen> {
               ),
             ),
             actions: [
+              // زر الإحصائيات
+              Padding(
+                padding: const EdgeInsets.only(left: 6, top: 8, bottom: 8),
+                child: Material(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: _goToStats,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      child: Icon(Icons.insights, size: 20),
+                    ),
+                  ),
+                ),
+              ),
+              // زر الحضور
               Padding(
                 padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
                 child: Material(
