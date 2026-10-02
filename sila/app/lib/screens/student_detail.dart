@@ -140,7 +140,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     return NestedScrollView(
       headerSliverBuilder: (context, innerBoxIsScrolled) => [
         SliverAppBar(
-          // ✅ زيادة الارتفاع لحل التداخل
           expandedHeight: 310,
           pinned: true,
           backgroundColor: colors.headerGradientMid,
@@ -196,7 +195,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
                   child: Icon(Icons.person, size: 200,
                       color: Colors.white.withOpacity(0.08)),
                 ),
-                // ✅ الدائرة في المنتصف بدون تداخل
                 Positioned.fill(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 30, bottom: 70),
@@ -874,9 +872,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     );
   }
 
+  // ✅ مُحدَّثة: عرض الفترة (صباح/مساء)
   Widget _buildAttendanceTile(AttendanceRecord record, int index) {
     final colors = context.colors;
     final isPresent = record.status == 'PRESENT';
+    final isMorning = record.isMorning;
     final color = isPresent ? Colors.green : Colors.red;
 
     return TweenAnimationBuilder<double>(
@@ -895,12 +895,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
           border: Border(right: BorderSide(color: color.shade400, width: 4)),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Row(children: [
             Container(
               width: 42, height: 42,
               decoration: BoxDecoration(
-                color: context.isDark ? color.shade900.withOpacity(0.4) : color.shade50,
+                color: context.isDark
+                    ? color.shade900.withOpacity(0.4)
+                    : color.shade50,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(isPresent ? Icons.check : Icons.close,
@@ -908,16 +910,42 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(ApiService.formatDateArabic(record.date),
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: colors.textPrimary)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(ApiService.formatDateArabic(record.date),
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: colors.textPrimary)),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Icon(
+                      isMorning
+                          ? Icons.wb_sunny_outlined
+                          : Icons.nights_stay_outlined,
+                      size: 12,
+                      color: colors.textTertiary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      ApiService.periodName(record.period),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: colors.textTertiary,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ]),
+                ],
+              ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: context.isDark ? color.shade900.withOpacity(0.4) : color.shade50,
+                color: context.isDark
+                    ? color.shade900.withOpacity(0.4)
+                    : color.shade50,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(isPresent ? 'حاضر' : 'غائب',
