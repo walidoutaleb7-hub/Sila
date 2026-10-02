@@ -31,7 +31,6 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1800),
     );
 
-    // 1. الأيقونة: scale + fade (0 - 500ms)
     _iconScale = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(
         parent: _mainController,
@@ -45,7 +44,6 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // 2. SILA: fade + slide (630 - 1170ms)
     _titleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _mainController,
@@ -62,7 +60,6 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // 3. الشعار النصي (990 - 1530ms)
     _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _mainController,
@@ -79,7 +76,6 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // 4. Footer (1260 - 1800ms)
     _footerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _mainController,
@@ -147,35 +143,26 @@ class _SplashScreenState extends State<SplashScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ─── فقاعات خلفية ───
             Positioned(
-              top: -120,
-              right: -120,
+              top: -120, right: -120,
               child: _buildBubble(320, 0.10),
             ),
             Positioned(
-              top: 100,
-              right: 40,
+              top: 100, right: 40,
               child: _buildBubble(80, 0.06),
             ),
             Positioned(
-              bottom: -100,
-              left: -100,
+              bottom: -100, left: -100,
               child: _buildBubble(280, 0.08),
             ),
             Positioned(
-              bottom: 150,
-              left: 30,
+              bottom: 150, left: 30,
               child: _buildBubble(60, 0.05),
             ),
-
-            // ─── المحتوى ───
             SafeArea(
               child: Column(
                 children: [
                   const Spacer(flex: 3),
-
-                  // ─── الأيقونة ───
                   FadeTransition(
                     opacity: _iconFade,
                     child: ScaleTransition(
@@ -183,10 +170,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: _buildIcon(),
                     ),
                   ),
-
                   const SizedBox(height: 36),
-
-                  // ─── SILA ───
                   FadeTransition(
                     opacity: _titleFade,
                     child: SlideTransition(
@@ -194,10 +178,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: _buildTitle(),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
-                  // ─── الشعار النصي ───
                   FadeTransition(
                     opacity: _taglineFade,
                     child: SlideTransition(
@@ -205,18 +186,12 @@ class _SplashScreenState extends State<SplashScreen>
                       child: _buildTagline(),
                     ),
                   ),
-
                   const Spacer(flex: 3),
-
-                  // ─── نقاط التحميل ───
                   FadeTransition(
                     opacity: _footerFade,
                     child: _buildLoadingDots(),
                   ),
-
                   const SizedBox(height: 24),
-
-                  // ─── الإصدار ───
                   FadeTransition(
                     opacity: _footerFade,
                     child: Text(
@@ -228,7 +203,6 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 24),
                 ],
               ),
@@ -289,7 +263,6 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildTitle() {
     return Column(
       children: [
-        // SILA مع خط علوي وسفلي
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -317,7 +290,6 @@ class _SplashScreenState extends State<SplashScreen>
           ],
         ),
         const SizedBox(height: 10),
-        // خط ذهبي رقيق
         Container(
           width: 60,
           height: 3,
