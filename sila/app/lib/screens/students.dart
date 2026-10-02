@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
+import 'attendance.dart';
 
 class StudentsScreen extends StatefulWidget {
   final SchoolClass schoolClass;
@@ -125,20 +126,30 @@ class _StudentsScreenState extends State<StudentsScreen> {
     }
   }
 
+  void _goToAttendance() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AttendanceScreen(schoolClass: widget.schoolClass),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: CustomScrollView(
         slivers: [
-          // ═══════ AppBar مخصص بتدرج لوني ═══════
+          // ═══════ AppBar بتدرج لوني ═══════
           SliverAppBar(
-            expandedHeight: 140,
+            expandedHeight: 160,
             pinned: true,
             backgroundColor: Colors.green.shade800,
             foregroundColor: Colors.white,
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 56, right: 16, bottom: 16),
+              titlePadding:
+                  const EdgeInsets.only(left: 56, right: 16, bottom: 16),
               title: Text(
                 widget.schoolClass.name,
                 style: const TextStyle(
@@ -200,15 +211,89 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
               ),
             ),
+            actions: [
+              // زر تسجيل الحضور
+              Padding(
+                padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
+                child: Material(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: _goToAttendance,
+                    child: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.fact_check, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'الحضور',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // ═══════ شريط معلومات سريع ═══════
+          SliverToBoxAdapter(
+            child: FutureBuilder<List<Student>>(
+              future: _studentsFuture,
+              builder: (context, snapshot) {
+                final count = snapshot.data?.length ?? 0;
+                if (count == 0) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.people,
+                                size: 16, color: Colors.green.shade700),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$count تلميذ',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
 
           // ═══════ قائمة التلاميذ ═══════
           FutureBuilder<List<Student>>(
             future: _studentsFuture,
             builder: (context, snapshot) {
-              // ─── حالة التحميل ───
+              // تحميل
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -231,9 +316,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 );
               }
 
-              // ─── حالة الخطأ ───
+              // خطأ
               if (snapshot.hasError) {
                 return SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32),
@@ -293,9 +379,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
               final students = snapshot.data ?? [];
 
-              // ─── حالة فارغة ───
+              // فارغ
               if (students.isEmpty) {
                 return SliverFillRemaining(
+                  hasScrollBody: false,
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32),
@@ -343,15 +430,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 );
               }
 
-              // ─── قائمة التلاميذ ───
+              // قائمة
               return SliverPadding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final student = students[index];
-                      return _buildStudentCard(student, index);
-                    },
+                    (context, index) => _buildStudentCard(students[index], index),
                     childCount: students.length,
                   ),
                 ),
@@ -406,7 +490,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // ─── صورة رمزية ───
                   Container(
                     width: 52,
                     height: 52,
@@ -433,8 +516,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     ),
                   ),
                   const SizedBox(width: 14),
-
-                  // ─── الاسم ───
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,8 +539,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       ],
                     ),
                   ),
-
-                  // ─── سهم ───
                   Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
