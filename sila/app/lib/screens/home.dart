@@ -29,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _showAddClassDialog() async {
     final nameController = TextEditingController();
     final levelController = TextEditingController();
-    final colors = context.colors;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -56,12 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
+            const Text(
               'قسم جديد',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
-                color: colors.textPrimary,
               ),
             ),
           ],
@@ -70,19 +68,23 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildInput(
+              context,
               controller: nameController,
               label: 'اسم القسم',
               hint: 'مثال: 1AS-A',
               icon: Icons.meeting_room_outlined,
               action: TextInputAction.next,
+              autofocus: true,
             ),
             const SizedBox(height: 16),
             _buildInput(
+              context,
               controller: levelController,
               label: 'المستوى الدراسي',
               hint: 'مثال: 1AS',
               icon: Icons.workspace_premium_outlined,
               action: TextInputAction.done,
+              autofocus: false,
             ),
           ],
         ),
@@ -91,11 +93,11 @@ class _HomeScreenState extends State<HomeScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             style: TextButton.styleFrom(
-              foregroundColor: colors.textSecondary,
+              foregroundColor: context.colors.textSecondary,
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 12),
             ),
-            child: const Text('إلغاء', style: TextStyle(fontSize: 14)),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
@@ -135,17 +137,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildInput({
+  Widget _buildInput(
+    BuildContext context, {
     required TextEditingController controller,
     required String label,
     required String hint,
     required IconData icon,
     required TextInputAction action,
+    required bool autofocus,
   }) {
     final colors = context.colors;
     return TextField(
       controller: controller,
-      autofocus: label == 'اسم القسم',
+      autofocus: autofocus,
       textInputAction: action,
       style: TextStyle(color: colors.textPrimary),
       decoration: InputDecoration(
@@ -167,8 +171,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         filled: true,
         fillColor: colors.inputFill,
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -195,8 +199,10 @@ class _HomeScreenState extends State<HomeScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(isError ? Icons.error_outline : Icons.check_circle,
-                color: Colors.white),
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle,
+              color: Colors.white,
+            ),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
@@ -225,7 +231,6 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: colors.headerGradientMid,
             foregroundColor: Colors.white,
             actions: [
-              // 🌙 زر تبديل الوضع الليلي
               Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: Material(
@@ -264,6 +269,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // ═══════ لوحة اليوم ═══════
+          SliverToBoxAdapter(
+            child: FutureBuilder<List<SchoolClass>>(
+              future: _classesFuture,
+              builder: (context, snapshot) {
+                final classes = snapshot.data ?? [];
+                if (classes.isEmpty) return const SizedBox.shrink();
+                final totalStudents = classes.fold<int>(
+                  0,
+                  (sum, c) => sum + c.studentsCount,
+                );
+                return _buildTodayPanel(classes.length, totalStudents);
+              },
+            ),
+          ),
+
           FutureBuilder<List<SchoolClass>>(
             future: _classesFuture,
             builder: (context, snapshot) {
@@ -274,7 +295,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircularProgressIndicator(
-                            color: Colors.green.shade600, strokeWidth: 3),
+                          color: Colors.green.shade600,
+                          strokeWidth: 3,
+                        ),
                         const SizedBox(height: 16),
                         Text('جاري التحميل...',
                             style: TextStyle(
@@ -297,7 +320,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade50,
+                              color: context.isDark
+                                  ? const Color(0xFF3A1A1A)
+                                  : Colors.red.shade50,
                               shape: BoxShape.circle,
                             ),
                             child: Icon(Icons.wifi_off_rounded,
@@ -383,11 +408,10 @@ class _HomeScreenState extends State<HomeScreen> {
               }
 
               return SliverPadding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) =>
-                        _buildClassCard(classes[index], index),
+                    (context, index) => _buildClassCard(classes[index], index),
                     childCount: classes.length,
                   ),
                 ),
@@ -403,6 +427,144 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: const Icon(Icons.add),
         label: const Text('قسم جديد',
             style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // لوحة اليوم
+  // ═══════════════════════════════════════════
+  Widget _buildTodayPanel(int classCount, int studentsCount) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [
+              context.isDark
+                  ? const Color(0xFF0D3B14)
+                  : Colors.green.shade600,
+              context.isDark
+                  ? const Color(0xFF1B5E20)
+                  : Colors.green.shade400,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.green.withOpacity(0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // العنوان
+            Row(
+              children: [
+                Icon(
+                  Icons.dashboard_customize_outlined,
+                  color: Colors.white.withOpacity(0.9),
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'نظرة عامة',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.95),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // البطاقات
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMiniStat(
+                    icon: Icons.class_outlined,
+                    label: 'الأقسام',
+                    value: '$classCount',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMiniStat(
+                    icon: Icons.people_outline,
+                    label: 'التلاميذ',
+                    value: '$studentsCount',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniStat({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.22),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
