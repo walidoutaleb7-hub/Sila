@@ -14,11 +14,20 @@ class StudentsScreen extends StatefulWidget {
 
 class _StudentsScreenState extends State<StudentsScreen> {
   late Future<List<Student>> _studentsFuture;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
     _loadStudents();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _loadStudents() {
@@ -27,9 +36,70 @@ class _StudentsScreenState extends State<StudentsScreen> {
     });
   }
 
+  // ═══════════════════════════════════════════
+  // حوار إضافة تلميذ
+  // ═══════════════════════════════════════════
   Future<void> _showAddStudentDialog() async {
     final nameController = TextEditingController();
 
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => _buildStudentDialog(
+        title: 'إضافة تلميذ',
+        icon: Icons.person_add_alt_1_outlined,
+        nameController: nameController,
+      ),
+    );
+
+    if (confirmed == true && nameController.text.trim().isNotEmpty) {
+      try {
+        await ApiService.createStudent(
+          classId: widget.schoolClass.id,
+          fullName: nameController.text.trim(),
+        );
+        _loadStudents();
+        if (mounted) _showSnack('تم إضافة التلميذ بنجاح', isError: false);
+      } catch (e) {
+        if (mounted) _showSnack('خطأ: $e', isError: true);
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  // حوار تعديل تلميذ
+  // ═══════════════════════════════════════════
+  Future<void> _showEditStudentDialog(Student student) async {
+    final nameController = TextEditingController(text: student.fullName);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => _buildStudentDialog(
+        title: 'تعديل بيانات التلميذ',
+        icon: Icons.edit_outlined,
+        nameController: nameController,
+      ),
+    );
+
+    if (confirmed == true &&
+        nameController.text.trim().isNotEmpty &&
+        nameController.text.trim() != student.fullName) {
+      try {
+        await ApiService.updateStudent(
+          studentId: student.id,
+          fullName: nameController.text.trim(),
+        );
+        _loadStudents();
+        if (mounted) _showSnack('تم تعديل البيانات بنجاح', isError: false);
+      } catch (e) {
+        if (mounted) _showSnack('خطأ: $e', isError: true);
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  // حوار حذف تلميذ
+  // ═══════════════════════════════════════════
+  Future<void> _confirmDelete(Student student) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -43,18 +113,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+                color: const Color(0xFFFFEBEE),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
-                Icons.person_add_alt_1_outlined,
-                color: Color(0xFF2E7D32),
+                Icons.delete_outline,
+                color: Color(0xFFC62828),
                 size: 22,
               ),
             ),
             const SizedBox(width: 12),
             const Text(
-              'إضافة تلميذ',
+              'حذف التلميذ',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -63,52 +133,54 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ),
           ],
         ),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            labelText: 'الاسم الكامل',
-            hintText: 'مثال: أحمد بن علي',
-            hintStyle: TextStyle(
-              color: Colors.grey.shade400,
-              fontSize: 13,
-            ),
-            labelStyle: const TextStyle(
-              color: Color(0xFF2E7D32),
-              fontWeight: FontWeight.w600,
-            ),
-            prefixIcon: Icon(
-              Icons.badge_outlined,
-              color: Colors.green.shade400,
-              size: 20,
-            ),
-            filled: true,
-            fillColor: const Color(0xFFF8FAF9),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.green.shade100,
-                width: 1,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'هل أنت متأكد من حذف التلميذ:',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 14,
               ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: Colors.green.shade300,
-                width: 1.5,
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAF9),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Text(
+                student.fullName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: Color(0xFF263238),
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    size: 16, color: Colors.orange.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'سيتم حذف كل سجلات الحضور الخاصة به أيضاً.',
+                    style: TextStyle(
+                      color: Colors.orange.shade800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
         actions: [
@@ -119,23 +191,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 12),
             ),
-            child: const Text(
-              'إلغاء',
-              style: TextStyle(fontSize: 14),
-            ),
+            child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.check_rounded, size: 18),
+            icon: const Icon(Icons.delete_outline, size: 18),
             label: const Text(
-              'إضافة',
+              'حذف',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade600,
+              backgroundColor: const Color(0xFFC62828),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 12),
@@ -149,43 +218,157 @@ class _StudentsScreenState extends State<StudentsScreen> {
       ),
     );
 
-    if (confirmed == true && nameController.text.trim().isNotEmpty) {
+    if (confirmed == true) {
       try {
-        await ApiService.createStudent(
-          classId: widget.schoolClass.id,
-          fullName: nameController.text.trim(),
-        );
+        await ApiService.deleteStudent(student.id);
         _loadStudents();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('تم إضافة التلميذ بنجاح'),
-                ],
-              ),
-              backgroundColor: Colors.green.shade700,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-        }
+        if (mounted) _showSnack('تم حذف التلميذ', isError: false);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('خطأ: $e'),
-              backgroundColor: Colors.red.shade700,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+        if (mounted) _showSnack('خطأ: $e', isError: true);
       }
     }
+  }
+
+  // ═══════════════════════════════════════════
+  // حوار موحد (إضافة/تعديل)
+  // ═══════════════════════════════════════════
+  Widget _buildStudentDialog({
+    required String title,
+    required IconData icon,
+    required TextEditingController nameController,
+  }) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF2E7D32), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+                color: Color(0xFF263238),
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: TextField(
+        controller: nameController,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: 'الاسم الكامل',
+          hintText: 'مثال: أحمد بن علي',
+          hintStyle: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: 13,
+          ),
+          labelStyle: const TextStyle(
+            color: Color(0xFF2E7D32),
+            fontWeight: FontWeight.w600,
+          ),
+          prefixIcon: Icon(
+            Icons.badge_outlined,
+            color: Colors.green.shade400,
+            size: 20,
+          ),
+          filled: true,
+          fillColor: const Color(0xFFF8FAF9),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: Colors.green.shade100,
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: Colors.green.shade300,
+              width: 1.5,
+            ),
+          ),
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.grey.shade600,
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 12),
+          ),
+          child: const Text('إلغاء'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () => Navigator.pop(context, true),
+          icon: const Icon(Icons.check_rounded, size: 18),
+          label: const Text(
+            'حفظ',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green.shade600,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(
+                horizontal: 20, vertical: 12),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showSnack(String message, {required bool isError}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(isError ? Icons.error_outline : Icons.check_circle,
+                color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor:
+            isError ? Colors.red.shade700 : Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
   }
 
   void _goToAttendance() {
@@ -212,6 +395,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: CustomScrollView(
         slivers: [
+          // ═══════ AppBar ═══════
           SliverAppBar(
             expandedHeight: 150,
             pinned: true,
@@ -322,6 +506,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ],
           ),
 
+          // ═══════ شريط البحث ═══════
           SliverToBoxAdapter(
             child: FutureBuilder<List<Student>>(
               future: _studentsFuture,
@@ -329,32 +514,126 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 final count = snapshot.data?.length ?? 0;
                 if (count == 0) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.people,
-                                size: 16, color: Colors.green.shade700),
-                            const SizedBox(width: 6),
-                            Text(
-                              '$count تلميذ',
-                              style: TextStyle(
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                      // عداد التلاميذ + زر البحث
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.people,
+                                    size: 16, color: Colors.green.shade700),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$count تلميذ',
+                                  style: TextStyle(
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          // زر فتح/إغلاق البحث
+                          Material(
+                            color: _isSearching
+                                ? Colors.green.shade50
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                setState(() {
+                                  _isSearching = !_isSearching;
+                                  if (!_isSearching) {
+                                    _searchController.clear();
+                                    _searchQuery = '';
+                                  }
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Icon(
+                                  _isSearching
+                                      ? Icons.close
+                                      : Icons.search,
+                                  size: 22,
+                                  color: Colors.green.shade700,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
+
+                      // خانة البحث (تظهر عند الضغط على أيقونة البحث)
+                      if (_isSearching) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _searchController,
+                          autofocus: true,
+                          onChanged: (v) {
+                            setState(() => _searchQuery = v.trim());
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'ابحث باسم التلميذ...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 13,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.green.shade400,
+                              size: 20,
+                            ),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear,
+                                        size: 18,
+                                        color: Colors.grey.shade500),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: Colors.green.shade100,
+                                width: 1,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: Colors.green.shade300,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 );
@@ -362,6 +641,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ),
           ),
 
+          // ═══════ قائمة التلاميذ ═══════
           FutureBuilder<List<Student>>(
             future: _studentsFuture,
             builder: (context, snapshot) {
@@ -435,9 +715,19 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 );
               }
 
-              final students = snapshot.data ?? [];
+              final allStudents = snapshot.data ?? [];
 
-              if (students.isEmpty) {
+              // تطبيق البحث
+              final students = _searchQuery.isEmpty
+                  ? allStudents
+                  : allStudents
+                      .where((s) => s.fullName
+                          .toLowerCase()
+                          .contains(_searchQuery.toLowerCase()))
+                      .toList();
+
+              // حالة فارغة
+              if (allStudents.isEmpty) {
                 return SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
@@ -469,6 +759,36 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           Text('اضغط زر + لإضافة أول تلميذ',
                               style: TextStyle(
                                   color: Colors.grey.shade600, fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // نتيجة البحث فارغة
+              if (students.isEmpty) {
+                return SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off,
+                              size: 64, color: Colors.grey.shade400),
+                          const SizedBox(height: 16),
+                          Text('لا نتائج لـ "$_searchQuery"',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade700,
+                              )),
+                          const SizedBox(height: 8),
+                          Text('جرّب كلمة أخرى',
+                              style: TextStyle(
+                                  color: Colors.grey.shade600, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -531,9 +851,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
             borderRadius: BorderRadius.circular(16),
             onTap: () => _goToStudentDetail(student),
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
+                  // صورة رمزية
                   Container(
                     width: 52,
                     height: 52,
@@ -560,6 +881,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     ),
                   ),
                   const SizedBox(width: 14),
+
+                  // الاسم والرقم
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,9 +906,67 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       ],
                     ),
                   ),
+
+                  // قائمة الخيارات (تعديل / حذف)
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: Colors.grey.shade600,
+                      size: 22,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 4,
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showEditStudentDialog(student);
+                      } else if (value == 'delete') {
+                        _confirmDelete(student);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined,
+                                size: 18, color: Colors.green.shade700),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'تعديل',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline,
+                                size: 18, color: Colors.red.shade700),
+                            const SizedBox(width: 10),
+                            Text(
+                              'حذف',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
                   Icon(
                     Icons.arrow_forward_ios,
-                    size: 16,
+                    size: 14,
                     color: Colors.grey.shade400,
                   ),
                 ],
