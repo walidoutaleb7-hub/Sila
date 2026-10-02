@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/api.dart';
 import 'students.dart';
@@ -33,22 +32,33 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
         ),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(10),
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.add_business,
-                  color: Colors.green.shade700, size: 24),
+              child: const Icon(
+                Icons.school_outlined,
+                color: Color(0xFF2E7D32),
+                size: 22,
+              ),
             ),
             const SizedBox(width: 12),
-            const Text('قسم جديد',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'قسم جديد',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Color(0xFF263238),
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -57,43 +67,129 @@ class _HomeScreenState extends State<HomeScreen> {
             TextField(
               controller: nameController,
               autofocus: true,
+              textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 labelText: 'اسم القسم',
                 hintText: 'مثال: 1AS-A',
-                prefixIcon: const Icon(Icons.class_outlined),
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 13,
+                ),
+                labelStyle: const TextStyle(
+                  color: Color(0xFF2E7D32),
+                  fontWeight: FontWeight.w600,
+                ),
+                prefixIcon: Icon(
+                  Icons.meeting_room_outlined,
+                  color: Colors.green.shade400,
+                  size: 20,
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF8FAF9),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: Colors.green.shade100,
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: Colors.green.shade300,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: levelController,
+              textInputAction: TextInputAction.done,
               decoration: InputDecoration(
-                labelText: 'المستوى',
+                labelText: 'المستوى الدراسي',
                 hintText: 'مثال: 1AS',
-                prefixIcon: const Icon(Icons.stairs_outlined),
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 13,
+                ),
+                labelStyle: const TextStyle(
+                  color: Color(0xFF2E7D32),
+                  fontWeight: FontWeight.w600,
+                ),
+                prefixIcon: Icon(
+                  Icons.workspace_premium_outlined,
+                  color: Colors.green.shade400,
+                  size: 20,
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF8FAF9),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: Colors.green.shade100,
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: Colors.green.shade300,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
           ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey.shade600,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+            ),
+            child: const Text(
+              'إلغاء',
+              style: TextStyle(fontSize: 14),
+            ),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.check, size: 18),
-            label: const Text('إضافة'),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text(
+              'إضافة',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
+              backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 12),
+              elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
@@ -144,7 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: CustomScrollView(
         slivers: [
-          // ═══════ رأس التطبيق الراقي ═══════
           SliverAppBar(
             expandedHeight: 210,
             pinned: true,
@@ -158,7 +253,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // ═══════ قائمة الأقسام ═══════
           FutureBuilder<List<SchoolClass>>(
             future: _classesFuture,
             builder: (context, snapshot) {
@@ -294,9 +388,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════
-  // رأس التطبيق الراقي - مدرسة 🏫
-  // ═══════════════════════════════════════════
   Widget _buildHomeHeader() {
     return Container(
       decoration: const BoxDecoration(
@@ -313,7 +404,6 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 🏫 المدرسة - رسم معماري
           Positioned(
             bottom: 0,
             left: 0,
@@ -325,8 +415,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // لمعة خفيفة
           Positioned(
             top: -60,
             right: -60,
@@ -344,8 +432,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // النص
           Positioned(
             top: 0,
             right: 24,
@@ -355,7 +441,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // شعار "صلة"
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
@@ -386,8 +471,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
-                    // السطر الأول
                     const Text(
                       'المدرسة في جيبك',
                       style: TextStyle(
@@ -405,8 +488,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-
-                    // السطر الثاني
                     Text(
                       'والتواصل في يدك',
                       style: TextStyle(
@@ -426,9 +507,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════
-  // بطاقة القسم
-  // ═══════════════════════════════════════════
   Widget _buildClassCard(SchoolClass c, int index) {
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 300 + (index * 60)),
@@ -556,7 +634,6 @@ class _SchoolSilhouettePainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // ─── المبنى الرئيسي (مستطيل كبير) ───
     final mainBuilding = Path()
       ..moveTo(w * 0.15, h * 0.40)
       ..lineTo(w * 0.85, h * 0.40)
@@ -565,7 +642,6 @@ class _SchoolSilhouettePainter extends CustomPainter {
       ..close();
     canvas.drawPath(mainBuilding, paint);
 
-    // ─── السقف المثلث (الجزء الأوسط المرتفع) ───
     final roof = Path()
       ..moveTo(w * 0.15, h * 0.40)
       ..lineTo(w * 0.50, h * 0.10)
@@ -573,7 +649,6 @@ class _SchoolSilhouettePainter extends CustomPainter {
       ..close();
     canvas.drawPath(roof, paint);
 
-    // ─── القبة الصغيرة فوق السقف (رمز أكاديمي) ───
     final smallDome = Path()
       ..addOval(Rect.fromCircle(
         center: Offset(w * 0.50, h * 0.10),
@@ -581,16 +656,13 @@ class _SchoolSilhouettePainter extends CustomPainter {
       ));
     canvas.drawPath(smallDome, paint);
 
-    // ─── سارية العلم على القمة ───
     final flagPole = Rect.fromLTWH(w * 0.495, h * 0.02, w * 0.01, h * 0.08);
     canvas.drawRect(flagPole, paint);
 
-    // ─── النوافذ (مستطيلات صغيرة) ───
     final windowPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
 
-    // صف النوافذ الأول
     for (int i = 0; i < 5; i++) {
       final windowRect = Rect.fromLTWH(
         w * 0.22 + (i * w * 0.12),
@@ -604,7 +676,6 @@ class _SchoolSilhouettePainter extends CustomPainter {
       );
     }
 
-    // صف النوافذ الثاني
     for (int i = 0; i < 5; i++) {
       final windowRect = Rect.fromLTWH(
         w * 0.22 + (i * w * 0.12),
@@ -618,7 +689,6 @@ class _SchoolSilhouettePainter extends CustomPainter {
       );
     }
 
-    // ─── الباب الرئيسي (في الوسط) ───
     final door = Path()
       ..moveTo(w * 0.44, h * 1.0)
       ..lineTo(w * 0.44, h * 0.88)
@@ -627,7 +697,6 @@ class _SchoolSilhouettePainter extends CustomPainter {
       ..close();
     canvas.drawPath(door, paint);
 
-    // ─── أعمدة جانبية (للرقي المعماري) ───
     final leftPillar =
         Rect.fromLTWH(w * 0.13, h * 0.42, w * 0.025, h * 0.58);
     canvas.drawRect(leftPillar, paint);
@@ -636,7 +705,6 @@ class _SchoolSilhouettePainter extends CustomPainter {
         Rect.fromLTWH(w * 0.845, h * 0.42, w * 0.025, h * 0.58);
     canvas.drawRect(rightPillar, paint);
 
-    // ─── قاعدة أمامية (سلّم خفيف) ───
     final baseStep = Rect.fromLTWH(w * 0.10, h * 0.97, w * 0.80, h * 0.03);
     canvas.drawRect(baseStep, paint);
   }
