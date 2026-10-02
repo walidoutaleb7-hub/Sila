@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 import 'students.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _showAddClassDialog() async {
     final nameController = TextEditingController();
     final levelController = TextEditingController();
+    final colors = context.colors;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -41,22 +44,24 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+                color: context.isDark
+                    ? const Color(0xFF1B3A1E)
+                    : const Color(0xFFE8F5E9),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.school_outlined,
-                color: Color(0xFF2E7D32),
+                color: Color(0xFF4CAF50),
                 size: 22,
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
+            Text(
               'قسم جديد',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
-                color: Color(0xFF263238),
+                color: colors.textPrimary,
               ),
             ),
           ],
@@ -64,97 +69,20 @@ class _HomeScreenState extends State<HomeScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            _buildInput(
               controller: nameController,
-              autofocus: true,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'اسم القسم',
-                hintText: 'مثال: 1AS-A',
-                hintStyle: TextStyle(
-                  color: Colors.grey.shade400,
-                  fontSize: 13,
-                ),
-                labelStyle: const TextStyle(
-                  color: Color(0xFF2E7D32),
-                  fontWeight: FontWeight.w600,
-                ),
-                prefixIcon: Icon(
-                  Icons.meeting_room_outlined,
-                  color: Colors.green.shade400,
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF8FAF9),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(
-                    color: Colors.green.shade100,
-                    width: 1,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(
-                    color: Colors.green.shade300,
-                    width: 1.5,
-                  ),
-                ),
-              ),
+              label: 'اسم القسم',
+              hint: 'مثال: 1AS-A',
+              icon: Icons.meeting_room_outlined,
+              action: TextInputAction.next,
             ),
             const SizedBox(height: 16),
-            TextField(
+            _buildInput(
               controller: levelController,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                labelText: 'المستوى الدراسي',
-                hintText: 'مثال: 1AS',
-                hintStyle: TextStyle(
-                  color: Colors.grey.shade400,
-                  fontSize: 13,
-                ),
-                labelStyle: const TextStyle(
-                  color: Color(0xFF2E7D32),
-                  fontWeight: FontWeight.w600,
-                ),
-                prefixIcon: Icon(
-                  Icons.workspace_premium_outlined,
-                  color: Colors.green.shade400,
-                  size: 20,
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF8FAF9),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(
-                    color: Colors.green.shade100,
-                    width: 1,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(
-                    color: Colors.green.shade300,
-                    width: 1.5,
-                  ),
-                ),
-              ),
+              label: 'المستوى الدراسي',
+              hint: 'مثال: 1AS',
+              icon: Icons.workspace_premium_outlined,
+              action: TextInputAction.done,
             ),
           ],
         ),
@@ -163,24 +91,18 @@ class _HomeScreenState extends State<HomeScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.grey.shade600,
+              foregroundColor: colors.textSecondary,
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 12),
             ),
-            child: const Text(
-              'إلغاء',
-              style: TextStyle(fontSize: 14),
-            ),
+            child: const Text('إلغاء', style: TextStyle(fontSize: 14)),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
             icon: const Icon(Icons.check_rounded, size: 18),
             label: const Text(
               'إضافة',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade600,
@@ -213,6 +135,61 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildInput({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextInputAction action,
+  }) {
+    final colors = context.colors;
+    return TextField(
+      controller: controller,
+      autofocus: label == 'اسم القسم',
+      textInputAction: action,
+      style: TextStyle(color: colors.textPrimary),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+        labelStyle: TextStyle(
+          color: context.isDark
+              ? const Color(0xFF81C784)
+              : const Color(0xFF2E7D32),
+          fontWeight: FontWeight.w600,
+        ),
+        prefixIcon: Icon(
+          icon,
+          color: context.isDark
+              ? const Color(0xFF81C784)
+              : Colors.green.shade400,
+          size: 20,
+        ),
+        filled: true,
+        fillColor: colors.inputFill,
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.inputBorder, width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(
+            color: context.isDark
+                ? const Color(0xFF4CAF50)
+                : Colors.green.shade300,
+            width: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSnack(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -236,19 +213,53 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: colors.background,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 210,
             pinned: true,
-            backgroundColor: const Color(0xFF1B5E20),
+            backgroundColor: colors.headerGradientMid,
             foregroundColor: Colors.white,
+            actions: [
+              // 🌙 زر تبديل الوضع الليلي
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Material(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => themeController.toggle(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder: (child, animation) =>
+                            RotationTransition(
+                          turns: animation,
+                          child: FadeTransition(
+                              opacity: animation, child: child),
+                        ),
+                        child: Icon(
+                          themeController.isDark
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
+                          key: ValueKey(themeController.isDark),
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding:
-                  const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-              title: const SizedBox.shrink(),
+              titlePadding: EdgeInsets.zero,
               background: _buildHomeHeader(),
             ),
           ),
@@ -263,13 +274,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircularProgressIndicator(
-                          color: Colors.green.shade700,
-                          strokeWidth: 3,
-                        ),
+                            color: Colors.green.shade600, strokeWidth: 3),
                         const SizedBox(height: 16),
                         Text('جاري التحميل...',
                             style: TextStyle(
-                                color: Colors.grey.shade600, fontSize: 14)),
+                                color: colors.textSecondary,
+                                fontSize: 14)),
                       ],
                     ),
                   ),
@@ -294,14 +304,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 size: 56, color: Colors.red.shade400),
                           ),
                           const SizedBox(height: 20),
-                          const Text('تعذّر الاتصال',
+                          Text('تعذّر الاتصال',
                               style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: colors.textPrimary)),
                           const SizedBox(height: 8),
                           Text('${snapshot.error}',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 13)),
+                                  color: colors.textSecondary,
+                                  fontSize: 13)),
                           const SizedBox(height: 20),
                           ElevatedButton.icon(
                             onPressed: _loadClasses,
@@ -338,25 +351,30 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(colors: [
-                                Colors.green.shade50,
-                                Colors.green.shade100,
+                                context.isDark
+                                    ? const Color(0xFF1B3A1E)
+                                    : Colors.green.shade50,
+                                context.isDark
+                                    ? const Color(0xFF1B3A1E)
+                                    : Colors.green.shade100,
                               ]),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(Icons.school_outlined,
-                                size: 64, color: Colors.green.shade400),
+                            child: const Icon(Icons.school_outlined,
+                                size: 64, color: Color(0xFF4CAF50)),
                           ),
                           const SizedBox(height: 20),
-                          const Text('لا توجد أقسام بعد',
+                          Text('لا توجد أقسام بعد',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF37474F),
+                                color: colors.textPrimary,
                               )),
                           const SizedBox(height: 8),
                           Text('اضغط زر + لإضافة أول قسم',
                               style: TextStyle(
-                                  color: Colors.grey.shade600, fontSize: 14)),
+                                  color: colors.textSecondary,
+                                  fontSize: 14)),
                         ],
                       ),
                     ),
@@ -368,7 +386,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(16),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => _buildClassCard(classes[index], index),
+                    (context, index) =>
+                        _buildClassCard(classes[index], index),
                     childCount: classes.length,
                   ),
                 ),
@@ -389,15 +408,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeHeader() {
+    final colors = context.colors;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF0D3B14),
-            Color(0xFF1B5E20),
-            Color(0xFF2E7D32),
+            colors.headerGradientStart,
+            colors.headerGradientMid,
+            colors.headerGradientEnd,
           ],
         ),
       ),
@@ -508,6 +528,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildClassCard(SchoolClass c, int index) {
+    final colors = context.colors;
+
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 300 + (index * 60)),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -521,11 +543,12 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.cardBg,
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.cardBorder, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(context.isDark ? 0.3 : 0.05),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -577,28 +600,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(c.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 17,
-                              color: Color(0xFF263238),
+                              color: colors.textPrimary,
                             )),
                         const SizedBox(height: 6),
                         Row(
                           children: [
                             Icon(Icons.signal_cellular_alt,
-                                size: 14, color: Colors.grey.shade500),
+                                size: 14, color: colors.textTertiary),
                             const SizedBox(width: 4),
                             Text(c.level,
                                 style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: colors.textSecondary,
                                     fontSize: 13)),
                             const SizedBox(width: 12),
                             Icon(Icons.people_outline,
-                                size: 14, color: Colors.grey.shade500),
+                                size: 14, color: colors.textTertiary),
                             const SizedBox(width: 4),
                             Text('${c.studentsCount} تلميذ',
                                 style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: colors.textSecondary,
                                     fontSize: 13)),
                           ],
                         ),
@@ -606,7 +629,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   Icon(Icons.arrow_forward_ios,
-                      size: 16, color: Colors.grey.shade400),
+                      size: 16, color: colors.textTertiary),
                 ],
               ),
             ),
@@ -618,7 +641,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ═══════════════════════════════════════════════════════
-// 🏫 رسم المدرسة - مبنى أكاديمي معماري راقٍ
+// 🏫 رسم المدرسة
 // ═══════════════════════════════════════════════════════
 class _SchoolSilhouettePainter extends CustomPainter {
   final Color color;
