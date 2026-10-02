@@ -85,7 +85,7 @@ const createStudentSchema = z.object({
 });
 
 app.post('/api/classes/:classId/students', asyncHandler(async (req: Request, res: Response) => {
-  const classId = parseInt(req.params.classId);
+  const classId = parseInt(String(req.params.classId));
   
   if (isNaN(classId)) {
     return res.status(400).json({
@@ -126,7 +126,7 @@ app.post('/api/classes/:classId/students', asyncHandler(async (req: Request, res
 // GET /api/classes/:classId/students
 // ─────────────────────────────────────
 app.get('/api/classes/:classId/students', asyncHandler(async (req: Request, res: Response) => {
-  const classId = parseInt(req.params.classId);
+  const classId = parseInt(String(req.params.classId));
   
   if (isNaN(classId)) {
     return res.status(400).json({
@@ -197,7 +197,7 @@ app.post('/api/attendance', asyncHandler(async (req: Request, res: Response) => 
 // GET /api/attendance?classId=1&date=2026-01-15
 // ─────────────────────────────────────
 app.get('/api/attendance', asyncHandler(async (req: Request, res: Response) => {
-  const classId = parseInt(req.query.classId as string);
+  const classId = parseInt(String(req.query.classId));
   const dateStr = req.query.date as string;
 
   if (isNaN(classId)) {
