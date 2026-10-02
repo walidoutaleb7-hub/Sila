@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 
 // ═══════════════════════════════════════════
-// نموذج القسم
+// نماذج أساسية
 // ═══════════════════════════════════════════
 class SchoolClass {
   final int id;
@@ -26,9 +26,6 @@ class SchoolClass {
       );
 }
 
-// ═══════════════════════════════════════════
-// نموذج التلميذ
-// ═══════════════════════════════════════════
 class Student {
   final int id;
   final String fullName;
@@ -50,9 +47,6 @@ class Student {
       );
 }
 
-// ═══════════════════════════════════════════
-// نموذج سجل الحضور
-// ═══════════════════════════════════════════
 class AttendanceEntry {
   final int studentId;
   final String fullName;
@@ -284,7 +278,7 @@ class StudentGrades {
 }
 
 // ═══════════════════════════════════════════
-// نموذج التقرير الشامل
+// نماذج التقرير الشامل
 // ═══════════════════════════════════════════
 class StudentFullReport {
   final Student student;
@@ -302,6 +296,65 @@ class StudentFullReport {
     required this.attendanceRate,
     required this.gradesAverage,
   });
+}
+
+// ═══════════════════════════════════════════
+// نموذج جلسة الدرجات (للتعديل)
+// ═══════════════════════════════════════════
+class SessionGrades {
+  final String assessment;
+  final DateTime date;
+  final double maxScore;
+  final int coeff;
+  final String? note;
+  final List<SessionRecord> records;
+
+  SessionGrades({
+    required this.assessment,
+    required this.date,
+    required this.maxScore,
+    required this.coeff,
+    this.note,
+    required this.records,
+  });
+
+  factory SessionGrades.fromJson(Map<String, dynamic> json) => SessionGrades(
+        assessment: json['assessment'] as String,
+        date: DateTime.parse(json['date'] as String),
+        maxScore: (json['maxScore'] as num).toDouble(),
+        coeff: json['coeff'] as int,
+        note: json['note'] as String?,
+        records: (json['records'] as List)
+            .map((e) => SessionRecord.fromJson(e))
+            .toList(),
+      );
+}
+
+class SessionRecord {
+  final int studentId;
+  final String fullName;
+  final double score;
+  final double maxScore;
+  final int coeff;
+  final String? note;
+
+  SessionRecord({
+    required this.studentId,
+    required this.fullName,
+    required this.score,
+    required this.maxScore,
+    required this.coeff,
+    this.note,
+  });
+
+  factory SessionRecord.fromJson(Map<String, dynamic> json) => SessionRecord(
+        studentId: json['studentId'] as int,
+        fullName: json['fullName'] as String,
+        score: (json['score'] as num).toDouble(),
+        maxScore: (json['maxScore'] as num).toDouble(),
+        coeff: json['coeff'] as int,
+        note: json['note'] as String?,
+      );
 }
 
 // ═══════════════════════════════════════════
@@ -398,7 +451,6 @@ class ApiService {
     throw Exception('فشل جلب الإحصائيات');
   }
 
-  /// تجميع تقرير شامل للقسم (للتصدير)
   static Future<List<StudentFullReport>> getFullClassReport(int classId) async {
     final students = await getStudents(classId);
     final result = <StudentFullReport>[];
@@ -518,6 +570,29 @@ class ApiService {
       if (body['success'] == true) return StudentGrades.fromJson(body['data']);
     }
     throw Exception('فشل جلب درجات التلميذ');
+  }
+
+  /// جلب درجات جلسة محددة (للتعديل)
+  static Future<SessionGrades> getSessionGrades({
+    required int classId,
+    required String assessment,
+    required DateTime date,
+  }) async {
+    final dateStr = _formatDate(date);
+    final uri = Uri.parse(
+      '$_baseUrl/api/grades/session'
+      '?classId=$classId'
+      '&assessment=${Uri.encodeComponent(assessment)}'
+      '&date=$dateStr',
+    );
+    final response = await http.get(uri).timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) {
+        return SessionGrades.fromJson(body['data']);
+      }
+    }
+    throw Exception('فشل جلب درجات الجلسة');
   }
 
   // ───────── أدوات ─────────
