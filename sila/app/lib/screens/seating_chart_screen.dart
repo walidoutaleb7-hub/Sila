@@ -107,23 +107,33 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
   }
 
   // ═══════════════════════════════════════════
-  // قوائم مساعدة
+  // القوائم المنفصلة
   // ═══════════════════════════════════════════
-  Set<int> get _assignedIds {
+  Set<int> get _seatedIds {
     final ids = <int>{};
     for (final list in _seats.values) {
       for (final id in list) {
         if (id != null) ids.add(id);
       }
     }
+    return ids;
+  }
+
+  Set<int> get _delegateIds {
+    final ids = <int>{};
     if (_delegate1 != null) ids.add(_delegate1!);
     if (_delegate2 != null) ids.add(_delegate2!);
     if (_delegate3 != null) ids.add(_delegate3!);
     return ids;
   }
 
-  List<Student> get _unassignedStudents =>
-      _students.where((s) => !_assignedIds.contains(s.id)).toList();
+  // ✅ متاحون للمقاعد: كل من ليس في كرسي (حتى لو كان منوباً)
+  List<Student> get _availableForSeats =>
+      _students.where((s) => !_seatedIds.contains(s.id)).toList();
+
+  // ✅ متاحون للأدوار: كل من ليس له دور (حتى لو كان على كرسي)
+  List<Student> get _availableForDelegates =>
+      _students.where((s) => !_delegateIds.contains(s.id)).toList();
 
   Student? _findStudent(int? id) {
     if (id == null) return null;
@@ -135,11 +145,38 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
   }
 
   int get _totalCapacity => _rows * _cols * 2;
-
-  int get _assignedCount => _assignedIds.length;
+  int get _seatedCount => _seatedIds.length;
 
   // ═══════════════════════════════════════════
-  // التبديل مع تلميذ آخر (يُستخدم في القائمة المنبثقة)
+  // إزالة تلميذ من الكراسي فقط
+  // ═══════════════════════════════════════════
+  void _removeStudentFromSeats(int studentId) {
+    final keysToRemove = <String>[];
+    for (final key in _seats.keys) {
+      final list = List<int?>.from(_seats[key]!);
+      for (int i = 0; i < list.length; i++) {
+        if (list[i] == studentId) list[i] = null;
+      }
+      if (list.every((id) => id == null)) {
+        keysToRemove.add(key);
+      } else {
+        _seats[key] = list;
+      }
+    }
+    for (final k in keysToRemove) {
+      _seats.remove(k);
+    }
+  }
+
+  // إزالة تلميذ من الأدوار فقط
+  void _removeStudentFromDelegates(int studentId) {
+    if (_delegate1 == studentId) _delegate1 = null;
+    if (_delegate2 == studentId) _delegate2 = null;
+    if (_delegate3 == studentId) _delegate3 = null;
+  }
+
+  // ═══════════════════════════════════════════
+  // خيارات المقعد
   // ═══════════════════════════════════════════
   Future<void> _showSlotOptions(String cellKey, int slotIndex) async {
     final ids = _seats[cellKey] ?? [null, null];
@@ -222,7 +259,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
   }
 
   // ═══════════════════════════════════════════
-  // إسناد تلميذ لمقعد معين
+  // إسناد تلميذ لمقعد
   // ═══════════════════════════════════════════
   Future<void> _assignToSlot(String cellKey, int slotIndex) async {
     final selected = await showModalBottomSheet<int>(
@@ -232,12 +269,16 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => _buildStudentPicker(),
+      builder: (context) => _buildStudentPicker(
+        available: _availableForSeats,
+        title: 'اختر تلميذاً للمقعد',
+      ),
     );
 
     if (selected == null) return;
 
-    _removeStudentFromAll(selected);
+    // ✅ إزالة من الكراسي فقط (لا من الأدوار)
+    _removeStudentFromSeats(selected);
 
     setState(() {
       final current = List<int?>.from(_seats[cellKey] ?? [null, null]);
@@ -267,33 +308,14 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     _save();
   }
 
-  void _removeStudentFromAll(int studentId) {
-    final keysToRemove = <String>[];
-    for (final key in _seats.keys) {
-      final list = List<int?>.from(_seats[key]!);
-      for (int i = 0; i < list.length; i++) {
-        if (list[i] == studentId) list[i] = null;
-      }
-      if (list.every((id) => id == null)) {
-        keysToRemove.add(key);
-      } else {
-        _seats[key] = list;
-      }
-    }
-    for (final k in keysToRemove) {
-      _seats.remove(k);
-    }
-    if (_delegate1 == studentId) _delegate1 = null;
-    if (_delegate2 == studentId) _delegate2 = null;
-    if (_delegate3 == studentId) _delegate3 = null;
-  }
-
   // ═══════════════════════════════════════════
-  // منتقي التلاميذ
+  // منتقي التلاميذ (معامل: قائمة المتاحين)
   // ═══════════════════════════════════════════
-  Widget _buildStudentPicker() {
+  Widget _buildStudentPicker({
+    required List<Student> available,
+    required String title,
+  }) {
     final colors = context.colors;
-    final available = _unassignedStudents;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -331,14 +353,14 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('اختر تلميذاً',
+                      Text(title,
                           style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                               color: colors.textPrimary)),
                       Text(
                         available.isEmpty
-                            ? 'كل التلاميذ مُوزَّعون'
+                            ? 'لا يوجد تلاميذ متاحون'
                             : '${available.length} تلميذ متاح',
                         style: TextStyle(
                             fontSize: 12, color: colors.textTertiary),
@@ -360,16 +382,11 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
                             Icon(Icons.check_circle_outline,
                                 size: 64, color: Colors.green.shade400),
                             const SizedBox(height: 16),
-                            Text('كل التلاميذ مُوزَّعون',
+                            Text('لا يوجد تلاميذ متاحون',
                                 style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: colors.textPrimary)),
-                            const SizedBox(height: 8),
-                            Text('أزل تلميذاً من مقعد آخر لتغييره',
-                                style: TextStyle(
-                                    color: colors.textSecondary,
-                                    fontSize: 13)),
                           ],
                         ),
                       ),
@@ -409,7 +426,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
   }
 
   // ═══════════════════════════════════════════
-  // اختيار الأدوار
+  // اختيار الأدوار (يستخدم قائمة منفصلة)
   // ═══════════════════════════════════════════
   Future<void> _selectDelegate(int roleIndex) async {
     final currentId = roleIndex == 1
@@ -486,10 +503,14 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        builder: (context) => _buildStudentPicker(),
+        builder: (context) => _buildStudentPicker(
+          available: _availableForDelegates,
+          title: 'اختر تلميذاً للدور',
+        ),
       );
       if (selected != null) {
-        _removeStudentFromAll(selected);
+        // ✅ إزالة من الأدوار فقط (لا من الكراسي)
+        _removeStudentFromDelegates(selected);
         setState(() {
           if (roleIndex == 1) _delegate1 = selected;
           if (roleIndex == 2) _delegate2 = selected;
@@ -933,7 +954,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
 
   Widget _buildInfoBar() {
     final colors = context.colors;
-    final assigned = _assignedCount;
+    final assigned = _seatedCount;
     final capacity = _totalCapacity;
     final percent = capacity > 0 ? (assigned / capacity * 100).round() : 0;
 
@@ -956,8 +977,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         const SizedBox(width: 12),
         Container(width: 1, height: 16, color: colors.divider),
         const SizedBox(width: 12),
-        Icon(Icons.event_seat,
-            size: 16, color: Colors.blue.shade600),
+        Icon(Icons.event_seat, size: 16, color: Colors.blue.shade600),
         const SizedBox(width: 6),
         Text('$assigned / $capacity',
             style: TextStyle(
@@ -968,11 +988,9 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: percent == 100
-                ? Colors.green.shade50
-                : (context.isDark
-                    ? const Color(0xFF1B3A1E)
-                    : Colors.green.shade50),
+            color: context.isDark
+                ? const Color(0xFF1B3A1E)
+                : Colors.green.shade50,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text('$percent%',
@@ -1013,9 +1031,6 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════
-  // الطاولة (خلية بمقعدين)
-  // ═══════════════════════════════════════════
   Widget _buildTable(int row, int col) {
     final key = '$row-$col';
     final ids = _seats[key] ?? [null, null];
@@ -1052,16 +1067,9 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         ),
         child: Column(
           children: [
-            Expanded(
-              child: _buildSlot(key, 0, id0),
-            ),
-            Container(
-              height: 1,
-              color: colors.cardBorder,
-            ),
-            Expanded(
-              child: _buildSlot(key, 1, id1),
-            ),
+            Expanded(child: _buildSlot(key, 0, id0)),
+            Container(height: 1, color: colors.cardBorder),
+            Expanded(child: _buildSlot(key, 1, id1)),
           ],
         ),
       ),
@@ -1085,9 +1093,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         },
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: isFilled
-              ? _buildFilledSlot(student)
-              : _buildEmptySlot(colors),
+          child: isFilled ? _buildFilledSlot(student) : _buildEmptySlot(colors),
         ),
       ),
     );
@@ -1131,9 +1137,6 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════
-  // الأدوار
-  // ═══════════════════════════════════════════
   Widget _buildDelegates() {
     final colors = context.colors;
     return Column(
@@ -1158,8 +1161,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
                   color: colors.textPrimary)),
         ]),
         const SizedBox(height: 12),
-        _buildDelegateRow(
-            1, 'منوب القسم', Icons.star, Colors.amber, _delegate1),
+        _buildDelegateRow(1, 'منوب القسم', Icons.star, Colors.amber, _delegate1),
         const SizedBox(height: 10),
         _buildDelegateRow(
             2, 'النائب الأول', Icons.star_half, Colors.blue, _delegate2),
