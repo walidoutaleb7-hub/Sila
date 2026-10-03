@@ -224,14 +224,13 @@ class CurrentSchedule {
 }
 
 // ═══════════════════════════════════════════
-// مخطط الجلوس (طاولة = مقعدان)
+// مخطط الجلوس
 // ═══════════════════════════════════════════
 class SeatingChart {
   final int id;
   final int classId;
   final int rows;
   final int cols;
-  // "r-c" → [id1, id2] حيث null تعني مقعد فارغ
   final Map<String, List<int?>> seats;
   final int? delegate1;
   final int? delegate2;
@@ -281,7 +280,7 @@ class SeatingChart {
 }
 
 // ═══════════════════════════════════════════
-// الإحصائيات
+// الإحصائيات (قديمة)
 // ═══════════════════════════════════════════
 class ClassStats {
   final String className;
@@ -376,6 +375,136 @@ class StudentRank {
         absent: json['absent'] as int,
         total: json['total'] as int,
         rate: json['rate'] as int,
+      );
+}
+
+// ═══════════════════════════════════════════
+// الإحصائيات المتقدمة
+// ═══════════════════════════════════════════
+class AdvancedStats {
+  final String className;
+  final String classLevel;
+  final String period;
+  final int totalStudents;
+  final OverviewData overview;
+  final List<DailyTrendPoint> dailyTrend;
+  final List<int> weekdayRates;
+  final List<StudentRank> topStudents;
+  final List<StudentRank> worstStudents;
+  final int atRiskCount;
+  final List<AtRiskStudent> atRiskStudents;
+  final List<Insight> insights;
+
+  AdvancedStats({
+    required this.className,
+    required this.classLevel,
+    required this.period,
+    required this.totalStudents,
+    required this.overview,
+    required this.dailyTrend,
+    required this.weekdayRates,
+    required this.topStudents,
+    required this.worstStudents,
+    required this.atRiskCount,
+    required this.atRiskStudents,
+    required this.insights,
+  });
+
+  factory AdvancedStats.fromJson(Map<String, dynamic> json) => AdvancedStats(
+        className: json['className'] as String,
+        classLevel: json['classLevel'] as String,
+        period: json['period'] as String,
+        totalStudents: json['totalStudents'] as int,
+        overview: OverviewData.fromJson(json['overview']),
+        dailyTrend: (json['dailyTrend'] as List)
+            .map((e) => DailyTrendPoint.fromJson(e))
+            .toList(),
+        weekdayRates: (json['weekdayRates'] as List)
+            .map((e) => (e as num).toInt())
+            .toList(),
+        topStudents: (json['topStudents'] as List)
+            .map((e) => StudentRank.fromJson(e))
+            .toList(),
+        worstStudents: (json['worstStudents'] as List)
+            .map((e) => StudentRank.fromJson(e))
+            .toList(),
+        atRiskCount: json['atRiskCount'] as int,
+        atRiskStudents: (json['atRiskStudents'] as List)
+            .map((e) => AtRiskStudent.fromJson(e))
+            .toList(),
+        insights: (json['insights'] as List)
+            .map((e) => Insight.fromJson(e))
+            .toList(),
+      );
+}
+
+class OverviewData {
+  final int total, present, absent, rate, trend, prevRate;
+  OverviewData({
+    required this.total,
+    required this.present,
+    required this.absent,
+    required this.rate,
+    required this.trend,
+    required this.prevRate,
+  });
+  factory OverviewData.fromJson(Map<String, dynamic> json) => OverviewData(
+        total: json['total'] as int,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+        rate: json['rate'] as int,
+        trend: json['trend'] as int,
+        prevRate: json['prevRate'] as int,
+      );
+}
+
+class DailyTrendPoint {
+  final String date;
+  final int present, absent, rate;
+  DailyTrendPoint({
+    required this.date,
+    required this.present,
+    required this.absent,
+    required this.rate,
+  });
+  factory DailyTrendPoint.fromJson(Map<String, dynamic> json) =>
+      DailyTrendPoint(
+        date: json['date'] as String,
+        present: json['present'] as int,
+        absent: json['absent'] as int,
+        rate: json['rate'] as int,
+      );
+}
+
+class AtRiskStudent {
+  final int id;
+  final String fullName;
+  final int rate;
+  AtRiskStudent({
+    required this.id,
+    required this.fullName,
+    required this.rate,
+  });
+  factory AtRiskStudent.fromJson(Map<String, dynamic> json) => AtRiskStudent(
+        id: json['id'] as int,
+        fullName: json['fullName'] as String,
+        rate: json['rate'] as int,
+      );
+}
+
+class Insight {
+  final String type;
+  final String icon;
+  final String message;
+  Insight({
+    required this.type,
+    required this.icon,
+    required this.message,
+  });
+  factory Insight.fromJson(Map<String, dynamic> json) => Insight(
+        type: json['type'] as String,
+        icon: json['icon'] as String,
+        message: json['message'] as String,
       );
 }
 
@@ -804,6 +933,24 @@ class ApiService {
       if (body['success'] == true) return ClassStats.fromJson(body['data']);
     }
     throw Exception('فشل جلب الإحصائيات');
+  }
+
+  // ✅ الإحصائيات المتقدمة
+  static Future<AdvancedStats> getAdvancedStats({
+    required int classId,
+    required String period,
+  }) async {
+    final uri = Uri.parse(
+      '$_baseUrl/api/classes/$classId/advanced-stats?period=$period',
+    );
+    final response = await http
+        .get(uri, headers: _headers(json: false))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) return AdvancedStats.fromJson(body['data']);
+    }
+    throw Exception('فشل جلب الإحصائيات المتقدمة');
   }
 
   static Future<List<StudentFullReport>> getFullClassReport(int classId) async {
