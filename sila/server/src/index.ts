@@ -487,10 +487,14 @@ const attendanceSchema = z.object({
   classId: z.number().int().positive(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   period: z.enum(['MORNING', 'AFTERNOON']),
-  records: z.array(z.object({
-    studentId: z.number().int().positive(),
-    status: z.enum(['PRESENT', 'ABSENT']),
-  })).min(1),
+  records: z
+    .array(
+      z.object({
+        studentId: z.number().int().positive(),
+        status: z.enum(['PRESENT', 'ABSENT']),
+      }),
+    )
+    .min(1),
 });
 
 app.post(
@@ -663,9 +667,11 @@ app.put(
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
-    const data = z.object({
-      photoUrl: z.string().min(1).max(5_000_000),
-    }).parse(req.body);
+    const data = z
+      .object({
+        photoUrl: z.string().min(1).max(5_000_000),
+      })
+      .parse(req.body);
     const updated = await prisma.student.update({
       where: { id: studentId },
       data: { photoUrl: data.photoUrl },
@@ -833,10 +839,14 @@ const bulkGradeSchema = z.object({
   coeff: z.number().int().positive().default(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(500).optional(),
-  records: z.array(z.object({
-    studentId: z.number().int().positive(),
-    score: z.number().min(0).max(1000),
-  })).min(1),
+  records: z
+    .array(
+      z.object({
+        studentId: z.number().int().positive(),
+        score: z.number().min(0).max(1000),
+      }),
+    )
+    .min(1),
 });
 
 app.post(
@@ -1441,10 +1451,10 @@ app.delete(
 );
 
 // ═══════════════════════════════════════════
-// 12. مخطط الجلوس
+// 12. مخطط الجلوس (طاولة = مقعدان)
 // ═══════════════════════════════════════════
 
-// ─── جلب المخطط (يُنشئ فارغاً إن لم يوجد) ───
+// ─── جلب المخطط ───
 app.get(
   '/api/classes/:classId/seating',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -1482,11 +1492,11 @@ app.get(
   }),
 );
 
-// ─── حفظ المخطط كاملاً ───
+// ─── حفظ المخطط ───
 const saveSeatingSchema = z.object({
   rows: z.number().int().min(1).max(20),
   cols: z.number().int().min(1).max(20),
-  seats: z.record(z.string(), z.number().int().positive().nullable()),
+  seats: z.record(z.string(), z.any()),
   delegate1: z.number().int().positive().nullable().optional(),
   delegate2: z.number().int().positive().nullable().optional(),
   delegate3: z.number().int().positive().nullable().optional(),
@@ -1511,7 +1521,7 @@ app.put(
 
     const data = saveSeatingSchema.parse(req.body);
 
-    const cleanSeats: { [key: string]: number } = {};
+    const cleanSeats: { [key: string]: (number | null)[] } = {};
     for (const [key, value] of Object.entries(data.seats)) {
       if (value === null || value === undefined) continue;
       const parts = key.split('-');
@@ -1520,7 +1530,20 @@ app.put(
       const c = parseInt(parts[1]);
       if (isNaN(r) || isNaN(c)) continue;
       if (r < 0 || r >= data.rows || c < 0 || c >= data.cols) continue;
-      cleanSeats[key] = value as number;
+
+      let ids: (number | null)[] = [];
+      if (Array.isArray(value)) {
+        ids = value
+          .slice(0, 2)
+          .map((v: any) => (typeof v === 'number' && v > 0 ? v : null));
+      } else if (typeof value === 'number' && value > 0) {
+        ids = [value, null];
+      }
+
+      if (ids.some((id) => id !== null)) {
+        while (ids.length < 2) ids.push(null);
+        cleanSeats[key] = ids;
+      }
     }
 
     const chart = await prisma.seatingChart.upsert({
