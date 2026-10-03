@@ -41,73 +41,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
     });
   }
 
-  // ═══════════════════════════════════════════
-  // Quick Actions
-  // ═══════════════════════════════════════════
-  Future<void> _makeCall(String? phone) async {
-    if (phone == null || phone.trim().isEmpty) {
-      _showNoPhoneSnack();
-      return;
-    }
-    try {
-      await launchUrl(Uri.parse('tel:${phone.trim()}'));
-    } catch (_) {
-      _showErrorSnack();
-    }
-  }
-
-  Future<void> _openWhatsApp(String? phone) async {
-    if (phone == null || phone.trim().isEmpty) {
-      _showNoPhoneSnack();
-      return;
-    }
-    final cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
-    final withCC = cleanPhone.startsWith('0')
-        ? '213${cleanPhone.substring(1)}'
-        : cleanPhone;
-    try {
-      await launchUrl(
-        Uri.parse('https://wa.me/$withCC'),
-        mode: LaunchMode.externalApplication,
-      );
-    } catch (_) {
-      _showErrorSnack();
-    }
-  }
-
-  Future<void> _sendSMS(String? phone) async {
-    if (phone == null || phone.trim().isEmpty) {
-      _showNoPhoneSnack();
-      return;
-    }
-    try {
-      await launchUrl(Uri.parse('sms:${phone.trim()}'));
-    } catch (_) {
-      _showErrorSnack();
-    }
-  }
-
-  void _showNoPhoneSnack() {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Row(children: [
-        Icon(Icons.phone_disabled, color: Colors.white),
-        SizedBox(width: 8),
-        Text('لا يوجد رقم هاتف للولي'),
-      ]),
-      backgroundColor: Colors.orange.shade700,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
-  }
-
-  void _showErrorSnack() {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: const Text('تعذّر فتح التطبيق'),
-      backgroundColor: Colors.red.shade700,
-      behavior: SnackBarBehavior.floating,
-    ));
-  }
-
   void _goToMessaging() {
     Navigator.push(
       context,
@@ -266,7 +199,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
               ),
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+                  // تم تعديل البادينغ هنا: من 60 إلى 30 لرفع العناصر للأعلى
+                  padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
                   child: Row(
                     children: [
                       Container(
@@ -422,8 +356,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
       children: [
         _buildComparisonCard(history),
         const SizedBox(height: 14),
-        _buildQuickActions(),
-        const SizedBox(height: 14),
+        // تم إزالة _buildQuickActions() من هنا
         Row(children: [
           _buildStatCard('حضور', '${history.present}',
               Icons.check_circle, Colors.green),
@@ -559,127 +492,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen>
           style: TextStyle(
               color: Colors.white.withOpacity(0.7), fontSize: 11)),
     ]);
-  }
-
-  Widget _buildQuickActions() {
-    final phone = widget.student.guardianPhone;
-    final hasPhone = phone != null && phone.trim().isNotEmpty;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.colors.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.colors.cardBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(Icons.flash_on, size: 16, color: Colors.amber.shade600),
-            const SizedBox(width: 6),
-            Text('إجراءات سريعة',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: context.colors.textPrimary)),
-            if (!hasPhone) ...[
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text('لا يوجد رقم',
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.orange.shade800,
-                        fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ]),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(
-              child: _buildQuickAction(
-                icon: Icons.call,
-                label: 'اتصال',
-                color: Colors.blue,
-                enabled: hasPhone,
-                onTap: () => _makeCall(phone),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildQuickAction(
-                icon: Icons.chat,
-                label: 'واتساب',
-                color: Colors.green,
-                enabled: hasPhone,
-                onTap: () => _openWhatsApp(phone),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildQuickAction(
-                icon: Icons.sms_outlined,
-                label: 'SMS',
-                color: Colors.purple,
-                enabled: hasPhone,
-                onTap: () => _sendSMS(phone),
-              ),
-            ),
-          ]),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String label,
-    required MaterialColor color,
-    required bool enabled,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: enabled
-          ? (context.isDark
-              ? color.shade900.withOpacity(0.3)
-              : color.shade50)
-          : context.colors.inputFill,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: enabled ? onTap : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: enabled ? color.shade200 : context.colors.cardBorder,
-            ),
-          ),
-          child: Column(children: [
-            Icon(icon,
-                size: 20,
-                color: enabled
-                    ? color.shade600
-                    : context.colors.textTertiary),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: enabled
-                        ? color.shade700
-                        : context.colors.textTertiary)),
-          ]),
-        ),
-      ),
-    );
   }
 
   // ═══════════════════════════════════════════
