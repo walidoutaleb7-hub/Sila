@@ -480,7 +480,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 5. الحضور (مع period)
+// 5. الحضور
 // ═══════════════════════════════════════════
 const attendanceSchema = z.object({
   classId: z.number().int().positive(),
@@ -725,7 +725,7 @@ app.delete(
 );
 
 // ═══════════════════════════════════════════
-// 7. إحصائيات القسم (قديمة - للتوافق)
+// 7. إحصائيات القسم
 // ═══════════════════════════════════════════
 app.get(
   '/api/classes/:id/stats',
@@ -829,7 +829,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 7.5. الإحصائيات المتقدمة (مع فلترة زمنية + insights)
+// 7.5. الإحصائيات المتقدمة
 // ═══════════════════════════════════════════
 app.get(
   '/api/classes/:id/advanced-stats',
@@ -1329,7 +1329,7 @@ app.get(
 );
 
 // ═══════════════════════════════════════════
-// 9. سجل حضور تلميذ
+// 9. سجل حضور تلميذ (مع متوسط القسم)
 // ═══════════════════════════════════════════
 app.get(
   '/api/students/:id/attendance',
@@ -1356,6 +1356,25 @@ app.get(
         error: { code: 'STUDENT_NOT_FOUND', message: 'التلميذ غير موجود' },
       });
     }
+
+    const classmates = await prisma.student.findMany({
+      where: { classId: student.classId },
+      include: { attendance: true },
+    });
+
+    let classTotalRecords = 0;
+    let classPresentRecords = 0;
+    for (const c of classmates) {
+      classTotalRecords += c.attendance.length;
+      classPresentRecords += c.attendance.filter(
+        (a) => a.status === 'PRESENT',
+      ).length;
+    }
+    const classAverageRate =
+      classTotalRecords > 0
+        ? Math.round((classPresentRecords / classTotalRecords) * 100)
+        : 0;
+
     const attendance = await prisma.attendance.findMany({
       where: { studentId },
       orderBy: [{ date: 'desc' }, { period: 'asc' }],
@@ -1364,6 +1383,7 @@ app.get(
     const present = attendance.filter((a) => a.status === 'PRESENT').length;
     const absent = attendance.filter((a) => a.status === 'ABSENT').length;
     const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+
     res.json({
       success: true,
       data: {
@@ -1373,6 +1393,7 @@ app.get(
           classId: student.classId,
         },
         stats: { total, present, absent, rate },
+        classAverageRate,
         records: attendance.map((a) => ({
           date: a.date,
           period: a.period,
