@@ -21,8 +21,9 @@ model User {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  classes   Class[]
-  schedules Schedule[]
+  classes       Class[]
+  schedules     Schedule[]
+  seatingCharts SeatingChart[]
 
   @@map("users")
 }
@@ -37,10 +38,11 @@ model Class {
   userId    String
   createdAt DateTime @default(now())
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  students   Student[]
-  notes      Note[]
-  schedules  Schedule[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students     Student[]
+  notes        Note[]
+  schedules    Schedule[]
+  seatingChart SeatingChart?
 
   @@index([userId])
   @@map("classes")
@@ -68,14 +70,14 @@ model Student {
 }
 
 // ═══════════════════════════════════════════
-// الحضور (صباح/مساء)
+// الحضور
 // ═══════════════════════════════════════════
 model Attendance {
   id        Int      @id @default(autoincrement())
   studentId Int
   date      DateTime @db.Date
-  period    String   @db.VarChar(20) // MORNING / AFTERNOON
-  status    String   @db.VarChar(20) // PRESENT / ABSENT
+  period    String   @db.VarChar(20)
+  status    String   @db.VarChar(20)
   createdAt DateTime @default(now())
 
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -135,9 +137,9 @@ model Schedule {
   id        Int      @id @default(autoincrement())
   userId    String
   classId   Int
-  dayOfWeek Int      // 1 = الاثنين ... 7 = الأحد (Dart format)
-  startTime String   @db.VarChar(5) // "08:00"
-  endTime   String   @db.VarChar(5) // "09:00"
+  dayOfWeek Int
+  startTime String   @db.VarChar(5)
+  endTime   String   @db.VarChar(5)
   subject   String   @db.VarChar(100)
   room      String?  @db.VarChar(50)
   createdAt DateTime @default(now())
@@ -147,4 +149,28 @@ model Schedule {
 
   @@index([userId, dayOfWeek])
   @@map("schedule")
+}
+
+// ═══════════════════════════════════════════
+// مخطط الجلوس
+// ═══════════════════════════════════════════
+model SeatingChart {
+  id        Int      @id @default(autoincrement())
+  classId   Int      @unique
+  userId    String
+  rows      Int      @default(5)
+  cols      Int      @default(4)
+  // seats: map من "row-col" → studentId
+  // مثال: { "0-0": 5, "0-1": 8, "1-0": 3 }
+  seats     Json     @default("{}")
+  delegate1 Int?
+  delegate2 Int?
+  delegate3 Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("seating_charts")
 }
