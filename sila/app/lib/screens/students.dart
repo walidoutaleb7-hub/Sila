@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import 'attendance.dart';
 import 'grades_list.dart';
 import 'notes_screen.dart';
+import 'seating_chart_screen.dart';
 import 'stats.dart';
 import 'student_detail.dart';
 
@@ -62,7 +63,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: colors.divider,
@@ -70,11 +72,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 8),
                 child: Row(
                   children: [
                     Icon(Icons.ios_share,
-                        color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700,
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade700,
                         size: 22),
                     const SizedBox(width: 10),
                     Text('تصدير تقرير القسم',
@@ -91,36 +96,52 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50,
+                    color: context.isDark
+                        ? const Color(0xFF1B3A1E)
+                        : Colors.green.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.table_chart_outlined,
-                      color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700,
+                      color: context.isDark
+                          ? const Color(0xFF81C784)
+                          : Colors.green.shade700,
                       size: 22),
                 ),
                 title: Text('ملف Excel / CSV',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary)),
                 subtitle: Text('جدول كامل يفتح في Excel',
-                    style: TextStyle(fontSize: 12, color: colors.textSecondary)),
-                trailing: Icon(Icons.arrow_forward_ios, size: 14, color: colors.textTertiary),
+                    style: TextStyle(
+                        fontSize: 12, color: colors.textSecondary)),
+                trailing: Icon(Icons.arrow_forward_ios,
+                    size: 14, color: colors.textTertiary),
                 onTap: () => Navigator.pop(context, 'csv'),
               ),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: context.isDark ? const Color(0xFF1B2A3A) : Colors.blue.shade50,
+                    color: context.isDark
+                        ? const Color(0xFF1B2A3A)
+                        : Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.chat_outlined,
-                      color: context.isDark ? const Color(0xFF64B5F6) : Colors.blue.shade700,
+                      color: context.isDark
+                          ? const Color(0xFF64B5F6)
+                          : Colors.blue.shade700,
                       size: 22),
                 ),
                 title: Text('تقرير نصي (واتساب)',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary)),
                 subtitle: Text('نص جاهز للإرسال في واتساب',
-                    style: TextStyle(fontSize: 12, color: colors.textSecondary)),
-                trailing: Icon(Icons.arrow_forward_ios, size: 14, color: colors.textTertiary),
+                    style: TextStyle(
+                        fontSize: 12, color: colors.textSecondary)),
+                trailing: Icon(Icons.arrow_forward_ios,
+                    size: 14, color: colors.textTertiary),
                 onTap: () => Navigator.pop(context, 'text'),
               ),
               const SizedBox(height: 8),
@@ -175,14 +196,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
         builder: (context, setDialogState) {
           final colors = context.colors;
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22)),
             titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             title: Row(children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF1B3A1E) : const Color(0xFFE8F5E9),
+                  color: context.isDark
+                      ? const Color(0xFF1B3A1E)
+                      : const Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.person_add_alt_1_outlined,
@@ -211,12 +235,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       'مثال: أحمد بن علي', Icons.badge_outlined,
                       onChanged: () => setDialogState(() {})),
                   const SizedBox(height: 12),
-                  _buildInput(context, guardianNameController, 'اسم الولي (اختياري)',
-                      'مثال: محمد بن علي', Icons.family_restroom,
+                  _buildInput(context, guardianNameController,
+                      'اسم الولي (اختياري)', 'مثال: محمد بن علي',
+                      Icons.family_restroom,
                       onChanged: () => setDialogState(() {})),
                   const SizedBox(height: 12),
-                  _buildInput(context, guardianPhoneController, 'رقم هاتف الولي (اختياري)',
-                      'مثال: 0555123456', Icons.phone_iphone,
+                  _buildInput(context, guardianPhoneController,
+                      'رقم هاتف الولي (اختياري)', 'مثال: 0555123456',
+                      Icons.phone_iphone,
                       keyboardType: TextInputType.phone,
                       onChanged: () => setDialogState(() {})),
                 ],
@@ -226,7 +252,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, null),
-                style: TextButton.styleFrom(foregroundColor: colors.textSecondary),
+                style: TextButton.styleFrom(
+                    foregroundColor: colors.textSecondary),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
@@ -299,14 +326,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
         builder: (context, setDialogState) {
           final colors = context.colors;
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22)),
             titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             title: Row(children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: context.isDark ? const Color(0xFF1B3A1E) : const Color(0xFFE8F5E9),
+                  color: context.isDark
+                      ? const Color(0xFF1B3A1E)
+                      : const Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.edit_outlined,
@@ -347,8 +377,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       'مثال: محمد بن علي', Icons.family_restroom,
                       onChanged: () => setDialogState(() {})),
                   const SizedBox(height: 12),
-                  _buildInput(context, guardianPhoneController, 'رقم هاتف الولي',
-                      'مثال: 0555123456', Icons.phone_iphone,
+                  _buildInput(context, guardianPhoneController,
+                      'رقم هاتف الولي', 'مثال: 0555123456',
+                      Icons.phone_iphone,
                       keyboardType: TextInputType.phone,
                       onChanged: () => setDialogState(() {})),
                 ],
@@ -358,7 +389,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, null),
-                style: TextButton.styleFrom(foregroundColor: colors.textSecondary),
+                style: TextButton.styleFrom(
+                    foregroundColor: colors.textSecondary),
                 child: const Text('إلغاء'),
               ),
               ElevatedButton.icon(
@@ -441,24 +473,32 @@ class _StudentsScreenState extends State<StudentsScreen> {
         hintText: hint,
         hintStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
         labelStyle: TextStyle(
-          color: context.isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32),
+          color: context.isDark
+              ? const Color(0xFF81C784)
+              : const Color(0xFF2E7D32),
           fontWeight: FontWeight.w600,
         ),
         prefixIcon: Icon(icon,
-            color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade400,
+            color: context.isDark
+                ? const Color(0xFF81C784)
+                : Colors.green.shade400,
             size: 20),
         filled: true,
         fillColor: colors.inputFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: colors.inputBorder, width: 1)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-                color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300,
+                color: context.isDark
+                    ? const Color(0xFF4CAF50)
+                    : Colors.green.shade300,
                 width: 1.5)),
       ),
     );
@@ -480,7 +520,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return Column(children: [
       Stack(children: [
         Container(
-          width: 90, height: 90,
+          width: 90,
+          height: 90,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: colors.cardBorder, width: 2),
@@ -492,13 +533,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     base64Decode(photoBase64),
                     fit: BoxFit.cover,
                     gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) => _photoPlaceholder(colors, fullName),
+                    errorBuilder: (_, __, ___) =>
+                        _photoPlaceholder(colors, fullName),
                   )
                 : _photoPlaceholder(colors, fullName),
           ),
         ),
         Positioned(
-          bottom: -4, right: -4,
+          bottom: -4,
+          right: -4,
           child: Material(
             color: Colors.green.shade600,
             shape: const CircleBorder(),
@@ -508,14 +551,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
               onTap: () => _pickImage(onPicked),
               child: const Padding(
                 padding: EdgeInsets.all(8),
-                child: Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                child: Icon(Icons.camera_alt,
+                    color: Colors.white, size: 18),
               ),
             ),
           ),
         ),
         if (hasPhoto)
           Positioned(
-            top: -4, right: -4,
+            top: -4,
+            right: -4,
             child: Material(
               color: Colors.red.shade600,
               shape: const CircleBorder(),
@@ -525,7 +570,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 onTap: onRemoved,
                 child: const Padding(
                   padding: EdgeInsets.all(6),
-                  child: Icon(Icons.close, color: Colors.white, size: 14),
+                  child: Icon(Icons.close,
+                      color: Colors.white, size: 14),
                 ),
               ),
             ),
@@ -541,7 +587,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   Widget _photoPlaceholder(AppColors colors, String fullName) {
-    final initial = fullName.trim().isEmpty ? '?' : fullName.trim().split(' ').first[0];
+    final initial = fullName.trim().isEmpty
+        ? '?'
+        : fullName.trim().split(' ').first[0];
     return Container(
       color: colors.inputFill,
       child: Center(
@@ -579,17 +627,21 @@ class _StudentsScreenState extends State<StudentsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22)),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         title: Row(children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: context.isDark ? const Color(0xFF3A1A1A) : const Color(0xFFFFEBEE),
+              color: context.isDark
+                  ? const Color(0xFF3A1A1A)
+                  : const Color(0xFFFFEBEE),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.delete_outline, color: Color(0xFFEF5350), size: 22),
+            child: const Icon(Icons.delete_outline,
+                color: Color(0xFFEF5350), size: 22),
           ),
           const SizedBox(width: 12),
           Text('حذف التلميذ',
@@ -603,11 +655,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('هل أنت متأكد من حذف التلميذ:',
-                style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+                style: TextStyle(
+                    color: colors.textSecondary, fontSize: 14)),
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: colors.inputFill,
                 borderRadius: BorderRadius.circular(12),
@@ -621,11 +675,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ),
             const SizedBox(height: 12),
             Row(children: [
-              Icon(Icons.warning_amber_rounded, size: 16, color: Colors.orange.shade700),
+              Icon(Icons.warning_amber_rounded,
+                  size: 16, color: Colors.orange.shade700),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('سيتم حذف كل السجلات (حضور، درجات، ملاحظات).',
-                    style: TextStyle(color: Colors.orange.shade800, fontSize: 12)),
+                child: Text('سيتم حذف كل السجلات.',
+                    style: TextStyle(
+                        color: Colors.orange.shade800, fontSize: 12)),
               ),
             ]),
           ],
@@ -634,7 +690,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            style: TextButton.styleFrom(foregroundColor: colors.textSecondary),
+            style: TextButton.styleFrom(
+                foregroundColor: colors.textSecondary),
             child: const Text('إلغاء'),
           ),
           ElevatedButton.icon(
@@ -645,7 +702,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFC62828),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -666,42 +724,72 @@ class _StudentsScreenState extends State<StudentsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
-        Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white),
+        Icon(isError ? Icons.error_outline : Icons.check_circle,
+            color: Colors.white),
         const SizedBox(width: 8),
         Expanded(child: Text(message)),
       ]),
-      backgroundColor: isError ? Colors.red.shade700 : Colors.green.shade700,
+      backgroundColor:
+          isError ? Colors.red.shade700 : Colors.green.shade700,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ));
   }
 
+  // ═══════════════════════════════════════════
+  // التنقل
+  // ═══════════════════════════════════════════
   void _goToAttendance() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => AttendanceScreen(schoolClass: widget.schoolClass)));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) =>
+                AttendanceScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToStats() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => StatsScreen(schoolClass: widget.schoolClass)));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => StatsScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToGrades() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => GradesListScreen(schoolClass: widget.schoolClass)));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) =>
+                GradesListScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToNotes() {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => NotesScreen(schoolClass: widget.schoolClass)));
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) =>
+                NotesScreen(schoolClass: widget.schoolClass)));
+  }
+
+  void _goToSeatingChart() {
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) =>
+                SeatingChartScreen(schoolClass: widget.schoolClass)));
   }
 
   void _goToStudentDetail(Student student) {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => StudentDetailScreen(student: student)))
+    Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => StudentDetailScreen(student: student)))
         .then((_) => _loadStudents());
   }
 
+  // ═══════════════════════════════════════════
+  // الواجهة الرئيسية
+  // ═══════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -711,7 +799,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
         children: [
           CustomScrollView(
             slivers: [
-              // ═══════ AppBar نظيف (بدون تداخل) ═══════
               SliverAppBar(
                 expandedHeight: 130,
                 pinned: true,
@@ -730,41 +817,54 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topRight,
                         end: Alignment.bottomLeft,
-                        colors: [colors.headerGradientMid, colors.headerGradientEnd],
+                        colors: [
+                          colors.headerGradientMid,
+                          colors.headerGradientEnd
+                        ],
                       ),
                     ),
                     child: Stack(children: [
                       Positioned(
-                        top: -20, left: -40,
-                        child: Icon(Icons.school, size: 200,
+                        top: -20,
+                        left: -40,
+                        child: Icon(Icons.school,
+                            size: 200,
                             color: Colors.white.withOpacity(0.07)),
                       ),
                       Positioned(
-                        bottom: 20, left: 20,
+                        bottom: 20,
+                        left: 20,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.18),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.25), width: 1),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.25),
+                                width: 1),
                           ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.workspace_premium_outlined,
-                                size: 14, color: Colors.white),
-                            const SizedBox(width: 6),
-                            Text('المستوى ${widget.schoolClass.level}',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600)),
-                          ]),
+                          child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                    Icons.workspace_premium_outlined,
+                                    size: 14,
+                                    color: Colors.white),
+                                const SizedBox(width: 6),
+                                Text(
+                                    'المستوى ${widget.schoolClass.level}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600)),
+                              ]),
                         ),
                       ),
                     ]),
                   ),
                 ),
                 actions: [
-                  // زر واحد فقط: "المزيد"
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: Material(
@@ -791,6 +891,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                             case 'stats':
                               _goToStats();
                               break;
+                            case 'seating':
+                              _goToSeatingChart();
+                              break;
                             case 'export':
                               _showExportOptions();
                               break;
@@ -805,6 +908,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                               'الملاحظات', Colors.blue, colors),
                           _popupItem('stats', Icons.insights,
                               'الإحصائيات', Colors.purple, colors),
+                          _popupItem('seating', Icons.grid_view,
+                              'مخطط الجلوس', Colors.brown, colors),
                           const PopupMenuDivider(),
                           _popupItem('export', Icons.ios_share,
                               'تصدير التقرير', Colors.teal, colors),
@@ -815,7 +920,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ],
               ),
 
-              // ═══════ شريط الأزرار السريعة (قابل للتمرير) ═══════
+              // ═══════ شريط الأزرار السريعة ═══════
               SliverToBoxAdapter(
                 child: Container(
                   color: colors.background,
@@ -853,6 +958,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       ),
                       const SizedBox(width: 8),
                       _quickAction(
+                        icon: Icons.grid_view,
+                        label: 'مخطط الجلوس',
+                        color: Colors.brown,
+                        onTap: _goToSeatingChart,
+                      ),
+                      const SizedBox(width: 8),
+                      _quickAction(
                         icon: Icons.ios_share,
                         label: 'تصدير',
                         color: Colors.teal,
@@ -863,7 +975,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
               ),
 
-              // ═══════ شريط العدد + البحث ═══════
+              // ═══════ العدد + البحث ═══════
               SliverToBoxAdapter(
                 child: FutureBuilder<List<Student>>(
                   future: _studentsFuture,
@@ -879,18 +991,26 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       child: Column(children: [
                         Row(children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50,
+                              color: context.isDark
+                                  ? const Color(0xFF1B3A1E)
+                                  : Colors.green.shade50,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(children: [
-                              Icon(Icons.people, size: 16,
-                                  color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700),
+                              Icon(Icons.people,
+                                  size: 16,
+                                  color: context.isDark
+                                      ? const Color(0xFF81C784)
+                                      : Colors.green.shade700),
                               const SizedBox(width: 6),
                               Text('$count تلميذ',
                                   style: TextStyle(
-                                      color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700,
+                                      color: context.isDark
+                                          ? const Color(0xFF81C784)
+                                          : Colors.green.shade700,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13)),
                             ]),
@@ -898,7 +1018,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           if (alertsCount > 0) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
                               decoration: BoxDecoration(
                                 color: context.isDark
                                     ? const Color(0xFF3A1A1A)
@@ -922,7 +1043,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           const Spacer(),
                           Material(
                             color: _isSearching
-                                ? (context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50)
+                                ? (context.isDark
+                                    ? const Color(0xFF1B3A1E)
+                                    : Colors.green.shade50)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                             child: InkWell(
@@ -938,9 +1061,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
                               },
                               child: Padding(
                                 padding: const EdgeInsets.all(10),
-                                child: Icon(_isSearching ? Icons.close : Icons.search,
+                                child: Icon(
+                                    _isSearching
+                                        ? Icons.close
+                                        : Icons.search,
                                     size: 22,
-                                    color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade700),
+                                    color: context.isDark
+                                        ? const Color(0xFF81C784)
+                                        : Colors.green.shade700),
                               ),
                             ),
                           ),
@@ -950,17 +1078,24 @@ class _StudentsScreenState extends State<StudentsScreen> {
                           TextField(
                             controller: _searchController,
                             autofocus: true,
-                            onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                            onChanged: (v) =>
+                                setState(() => _searchQuery = v.trim()),
                             style: TextStyle(color: colors.textPrimary),
                             decoration: InputDecoration(
                               hintText: 'ابحث باسم التلميذ...',
-                              hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+                              hintStyle: TextStyle(
+                                  color: colors.textTertiary,
+                                  fontSize: 13),
                               prefixIcon: Icon(Icons.search,
-                                  color: context.isDark ? const Color(0xFF81C784) : Colors.green.shade400,
+                                  color: context.isDark
+                                      ? const Color(0xFF81C784)
+                                      : Colors.green.shade400,
                                   size: 20),
                               suffixIcon: _searchQuery.isNotEmpty
                                   ? IconButton(
-                                      icon: Icon(Icons.clear, size: 18, color: colors.textTertiary),
+                                      icon: Icon(Icons.clear,
+                                          size: 18,
+                                          color: colors.textTertiary),
                                       onPressed: () {
                                         _searchController.clear();
                                         setState(() => _searchQuery = '');
@@ -968,17 +1103,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                   : null,
                               filled: true,
                               fillColor: colors.cardBg,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              contentPadding:
+                                  const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
                               border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: BorderSide.none),
                               enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide(color: colors.cardBorder, width: 1)),
+                                  borderSide: BorderSide(
+                                      color: colors.cardBorder, width: 1)),
                               focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: BorderSide(
-                                      color: context.isDark ? const Color(0xFF4CAF50) : Colors.green.shade300,
+                                      color: context.isDark
+                                          ? const Color(0xFF4CAF50)
+                                          : Colors.green.shade300,
                                       width: 1.5)),
                             ),
                           ),
@@ -989,20 +1129,27 @@ class _StudentsScreenState extends State<StudentsScreen> {
                 ),
               ),
 
-              // ═══════ القائمة ═══════
+              // ═══════ قائمة التلاميذ ═══════
               FutureBuilder<List<Student>>(
                 future: _studentsFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
-                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          CircularProgressIndicator(color: Colors.green.shade600, strokeWidth: 3),
-                          const SizedBox(height: 16),
-                          Text('جاري التحميل...',
-                              style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-                        ]),
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                  color: Colors.green.shade600,
+                                  strokeWidth: 3),
+                              const SizedBox(height: 16),
+                              Text('جاري التحميل...',
+                                  style: TextStyle(
+                                      color: colors.textSecondary,
+                                      fontSize: 14)),
+                            ]),
                       ),
                     );
                   }
@@ -1013,38 +1160,52 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       child: Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
-                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: context.isDark ? const Color(0xFF3A1A1A) : Colors.red.shade50,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.wifi_off_rounded, size: 56, color: Colors.red.shade400),
-                            ),
-                            const SizedBox(height: 20),
-                            Text('تعذّر الاتصال',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary)),
-                            const SizedBox(height: 8),
-                            Text('${snapshot.error}',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-                            const SizedBox(height: 20),
-                            ElevatedButton.icon(
-                              onPressed: _loadStudents,
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('إعادة المحاولة'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade700,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          ]),
+                          child: Column(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: context.isDark
+                                        ? const Color(0xFF3A1A1A)
+                                        : Colors.red.shade50,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.wifi_off_rounded,
+                                      size: 56,
+                                      color: Colors.red.shade400),
+                                ),
+                                const SizedBox(height: 20),
+                                Text('تعذّر الاتصال',
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textPrimary)),
+                                const SizedBox(height: 8),
+                                Text('${snapshot.error}',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        color: colors.textSecondary,
+                                        fontSize: 13)),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  onPressed: _loadStudents,
+                                  icon: const Icon(Icons.refresh),
+                                  label:
+                                      const Text('إعادة المحاولة'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        Colors.green.shade700,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24, vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
+                                  ),
+                                ),
+                              ]),
                         ),
                       ),
                     );
@@ -1054,7 +1215,9 @@ class _StudentsScreenState extends State<StudentsScreen> {
                   final students = _searchQuery.isEmpty
                       ? allStudents
                       : allStudents
-                          .where((s) => s.fullName.toLowerCase().contains(_searchQuery.toLowerCase()))
+                          .where((s) => s.fullName
+                              .toLowerCase()
+                              .contains(_searchQuery.toLowerCase()))
                           .toList();
 
                   if (allStudents.isEmpty) {
@@ -1063,28 +1226,41 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       child: Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
-                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(colors: [
-                                  context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade50,
-                                  context.isDark ? const Color(0xFF1B3A1E) : Colors.green.shade100,
-                                ]),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.group_outlined, size: 64, color: Color(0xFF4CAF50)),
-                            ),
-                            const SizedBox(height: 20),
-                            Text('لا يوجد تلاميذ بعد',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary)),
-                            const SizedBox(height: 8),
-                            Text('اضغط زر + لإضافة أول تلميذ',
-                                style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-                          ]),
+                          child: Column(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(colors: [
+                                      context.isDark
+                                          ? const Color(0xFF1B3A1E)
+                                          : Colors.green.shade50,
+                                      context.isDark
+                                          ? const Color(0xFF1B3A1E)
+                                          : Colors.green.shade100,
+                                    ]),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                      Icons.group_outlined,
+                                      size: 64,
+                                      color: Color(0xFF4CAF50)),
+                                ),
+                                const SizedBox(height: 20),
+                                Text('لا يوجد تلاميذ بعد',
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textPrimary)),
+                                const SizedBox(height: 8),
+                                Text(
+                                    'اضغط زر + لإضافة أول تلميذ',
+                                    style: TextStyle(
+                                        color: colors.textSecondary,
+                                        fontSize: 14)),
+                              ]),
                         ),
                       ),
                     );
@@ -1096,28 +1272,37 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       child: Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
-                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Icon(Icons.search_off, size: 64, color: colors.textTertiary),
-                            const SizedBox(height: 16),
-                            Text('لا نتائج لـ "$_searchQuery"',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: colors.textPrimary)),
-                            const SizedBox(height: 8),
-                            Text('جرّب كلمة أخرى',
-                                style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-                          ]),
+                          child: Column(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off,
+                                    size: 64,
+                                    color: colors.textTertiary),
+                                const SizedBox(height: 16),
+                                Text('لا نتائج لـ "$_searchQuery"',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.textPrimary)),
+                                const SizedBox(height: 8),
+                                Text('جرّب كلمة أخرى',
+                                    style: TextStyle(
+                                        color: colors.textSecondary,
+                                        fontSize: 13)),
+                              ]),
                         ),
                       ),
                     );
                   }
 
                   return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                    padding:
+                        const EdgeInsets.fromLTRB(16, 0, 16, 100),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (context, index) => _buildStudentCard(students[index], index),
+                        (context, index) =>
+                            _buildStudentCard(students[index], index),
                         childCount: students.length,
                       ),
                     ),
@@ -1137,12 +1322,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     color: colors.cardBg,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    CircularProgressIndicator(color: Colors.green.shade600),
-                    const SizedBox(height: 16),
-                    Text('جاري تجهيز التقرير...',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                  ]),
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(
+                            color: Colors.green.shade600),
+                        const SizedBox(height: 16),
+                        Text('جاري تجهيز التقرير...',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: colors.textPrimary)),
+                      ]),
                 ),
               ),
             ),
@@ -1153,14 +1343,12 @@ class _StudentsScreenState extends State<StudentsScreen> {
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add),
-        label: const Text('تلميذ جديد', style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text('تلميذ جديد',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  // ═══════════════════════════════════════════
-  // عنصر قائمة منبثقة
-  // ═══════════════════════════════════════════
   PopupMenuItem<String> _popupItem(
     String value,
     IconData icon,
@@ -1182,9 +1370,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════
-  // زر سريع في الشريط
-  // ═══════════════════════════════════════════
   Widget _quickAction({
     required IconData icon,
     required String label,
@@ -1201,7 +1386,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
@@ -1216,14 +1402,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
             children: [
               Icon(icon,
                   size: 16,
-                  color: context.isDark ? color.shade300 : color.shade700),
+                  color: context.isDark
+                      ? color.shade300
+                      : color.shade700),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: context.isDark ? color.shade300 : color.shade800,
+                  color: context.isDark
+                      ? color.shade300
+                      : color.shade800,
                 ),
               ),
             ],
@@ -1233,12 +1423,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════
-  // بطاقة التلميذ
-  // ═══════════════════════════════════════════
   Widget _buildStudentCard(Student student, int index) {
     final colors = context.colors;
-    final hasGuardianPhone = student.guardianPhone?.trim().isNotEmpty ?? false;
+    final hasGuardianPhone =
+        student.guardianPhone?.trim().isNotEmpty ?? false;
     final needsAlert = student.needsAlert;
     final alertColor = student.consecutiveAbsences >= 5
         ? Colors.red
@@ -1263,7 +1451,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(context.isDark ? 0.3 : 0.04),
+              color:
+                  Colors.black.withOpacity(context.isDark ? 0.3 : 0.04),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1285,7 +1474,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
               child: Column(
                 children: [
                   Row(children: [
-                    // الصورة + شارة التنبيه
                     Stack(
                       children: [
                         StudentAvatar(
@@ -1297,7 +1485,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
                         ),
                         if (needsAlert)
                           Positioned(
-                            top: -4, right: -4,
+                            top: -4,
+                            right: -4,
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
@@ -1400,7 +1589,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                     Icon(Icons.arrow_forward_ios,
                         size: 14, color: colors.textTertiary),
                   ]),
-                  // شريط التنبيه
                   if (needsAlert) ...[
                     const SizedBox(height: 10),
                     Container(
@@ -1412,9 +1600,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                             : alertColor.shade50,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: alertColor.shade200,
-                          width: 1,
-                        ),
+                            color: alertColor.shade200, width: 1),
                       ),
                       child: Row(children: [
                         Icon(Icons.event_busy,
