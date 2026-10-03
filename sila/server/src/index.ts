@@ -191,16 +191,13 @@ app.post(
   }),
 );
 
-// ─── سؤال الأمان ───
 app.post(
   '/api/auth/security-question',
   asyncHandler(async (req: Request, res: Response) => {
     const data = z.object({ email: z.string().email() }).parse(req.body);
-
     const user = await prisma.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
-
     if (!user || !user.securityQuestion) {
       return res.status(404).json({
         success: false,
@@ -210,12 +207,10 @@ app.post(
         },
       });
     }
-
     res.json({ success: true, data: { question: user.securityQuestion } });
   }),
 );
 
-// ─── إعادة تعيين كلمة المرور ───
 const resetPasswordSchema = z.object({
   email: z.string().email(),
   answer: z.string().min(1).max(200),
@@ -226,18 +221,15 @@ app.post(
   '/api/auth/reset-password',
   asyncHandler(async (req: Request, res: Response) => {
     const data = resetPasswordSchema.parse(req.body);
-
     const user = await prisma.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
-
     if (!user || !user.securityAnswerHash) {
       return res.status(404).json({
         success: false,
         error: { code: 'NOT_FOUND', message: 'الحساب غير موجود' },
       });
     }
-
     const cleanAnswer = data.answer.trim().toLowerCase();
     const ok = await bcrypt.compare(cleanAnswer, user.securityAnswerHash);
     if (!ok) {
@@ -246,13 +238,11 @@ app.post(
         error: { code: 'WRONG_ANSWER', message: 'الجواب غير صحيح' },
       });
     }
-
     const newHash = await bcrypt.hash(data.newPassword, 10);
     await prisma.user.update({
       where: { id: user.id },
       data: { passwordHash: newHash },
     });
-
     res.json({
       success: true,
       data: { message: 'تم تغيير كلمة المرور بنجاح' },
@@ -260,7 +250,6 @@ app.post(
   }),
 );
 
-// ─── معلوماتي ───
 app.get(
   '/api/auth/me',
   authenticate,
@@ -286,7 +275,6 @@ app.get(
   }),
 );
 
-// ─── تحديث معلوماتي ───
 const updateMeSchema = z.object({
   fullName: z.string().min(2).max(200).optional(),
   schoolName: z.string().max(200).optional().nullable(),
@@ -1449,6 +1437,138 @@ app.delete(
     }
     await prisma.schedule.delete({ where: { id: scheduleId } });
     res.json({ success: true, data: { deletedId: scheduleId } });
+  }),
+);
+
+// ═══════════════════════════════════════════
+// 12. مخطط الجلوس
+// ═══════════════════════════════════════════
+
+// ─── جلب المخطط (يُنشئ فارغاً إن لم يوجد) ───
+app.get(
+  '/api/classes/:classId/seating',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const classId = parseInt(String(req.params.classId));
+    if (isNaN(classId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
+      });
+    }
+    if (!(await ownsClass(classId, req.userId!))) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
+      });
+    }
+
+    let chart = await prisma.seatingChart.findUnique({
+      where: { classId },
+    });
+
+    if (!chart) {
+      chart = await prisma.seatingChart.create({
+        data: {
+          classId,
+          userId: req.userId!,
+          rows: 5,
+          cols: 4,
+          seats: {},
+        },
+      });
+    }
+
+    res.json({ success: true, data: chart });
+  }),
+);
+
+// ─── حفظ المخطط كاملاً ───
+const saveSeatingSchema = z.object({
+  rows: z.number().int().min(1).max(20),
+  cols: z.number().int().min(1).max(20),
+  seats: z.record(z.string(), z.number().int().positive().nullable()),
+  delegate1: z.number().int().positive().nullable().optional(),
+  delegate2: z.number().int().positive().nullable().optional(),
+  delegate3: z.number().int().positive().nullable().optional(),
+});
+
+app.put(
+  '/api/classes/:classId/seating',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const classId = parseInt(String(req.params.classId));
+    if (isNaN(classId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
+      });
+    }
+    if (!(await ownsClass(classId, req.userId!))) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
+      });
+    }
+
+    const data = saveSeatingSchema.parse(req.body);
+
+    const cleanSeats: { [key: string]: number } = {};
+    for (const [key, value] of Object.entries(data.seats)) {
+      if (value === null || value === undefined) continue;
+      const parts = key.split('-');
+      if (parts.length !== 2) continue;
+      const r = parseInt(parts[0]);
+      const c = parseInt(parts[1]);
+      if (isNaN(r) || isNaN(c)) continue;
+      if (r < 0 || r >= data.rows || c < 0 || c >= data.cols) continue;
+      cleanSeats[key] = value as number;
+    }
+
+    const chart = await prisma.seatingChart.upsert({
+      where: { classId },
+      update: {
+        rows: data.rows,
+        cols: data.cols,
+        seats: cleanSeats,
+        delegate1: data.delegate1 ?? null,
+        delegate2: data.delegate2 ?? null,
+        delegate3: data.delegate3 ?? null,
+      },
+      create: {
+        classId,
+        userId: req.userId!,
+        rows: data.rows,
+        cols: data.cols,
+        seats: cleanSeats,
+        delegate1: data.delegate1 ?? null,
+        delegate2: data.delegate2 ?? null,
+        delegate3: data.delegate3 ?? null,
+      },
+    });
+
+    res.json({ success: true, data: chart });
+  }),
+);
+
+// ─── حذف المخطط ───
+app.delete(
+  '/api/classes/:classId/seating',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const classId = parseInt(String(req.params.classId));
+    if (isNaN(classId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
+      });
+    }
+    if (!(await ownsClass(classId, req.userId!))) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
+      });
+    }
+
+    await prisma.seatingChart.deleteMany({ where: { classId } });
+    res.json({ success: true, data: { deleted: true } });
   }),
 );
 
