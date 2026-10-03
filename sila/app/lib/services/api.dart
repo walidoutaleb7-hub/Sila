@@ -118,6 +118,7 @@ class StudentHistory {
   final int present;
   final int absent;
   final int rate;
+  final int classAverageRate;
   final List<AttendanceRecord> records;
 
   StudentHistory({
@@ -126,6 +127,7 @@ class StudentHistory {
     required this.present,
     required this.absent,
     required this.rate,
+    required this.classAverageRate,
     required this.records,
   });
 
@@ -143,6 +145,7 @@ class StudentHistory {
       present: stats['present'] as int,
       absent: stats['absent'] as int,
       rate: stats['rate'] as int,
+      classAverageRate: (json['classAverageRate'] ?? 0) as int,
       records: recs.map((e) => AttendanceRecord.fromJson(e)).toList(),
     );
   }
@@ -280,7 +283,7 @@ class SeatingChart {
 }
 
 // ═══════════════════════════════════════════
-// الإحصائيات (قديمة)
+// الإحصائيات
 // ═══════════════════════════════════════════
 class ClassStats {
   final String className;
@@ -935,7 +938,6 @@ class ApiService {
     throw Exception('فشل جلب الإحصائيات');
   }
 
-  // ✅ الإحصائيات المتقدمة
   static Future<AdvancedStats> getAdvancedStats({
     required int classId,
     required String period,
