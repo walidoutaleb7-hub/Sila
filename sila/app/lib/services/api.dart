@@ -93,7 +93,7 @@ class AttendanceEntry {
 
 class AttendanceRecord {
   final DateTime date;
-  final String period; // MORNING / AFTERNOON
+  final String period;
   final String status;
 
   AttendanceRecord({
@@ -218,10 +218,59 @@ class CurrentSchedule {
         current: json['current'] != null
             ? ScheduleItem.fromJson(json['current'])
             : null,
-        next: json['next'] != null
-            ? ScheduleItem.fromJson(json['next'])
-            : null,
+        next: json['next'] != null ? ScheduleItem.fromJson(json['next']) : null,
       );
+}
+
+// ═══════════════════════════════════════════
+// مخطط الجلوس
+// ═══════════════════════════════════════════
+class SeatingChart {
+  final int id;
+  final int classId;
+  final int rows;
+  final int cols;
+  final Map<String, int> seats; // "r-c" → studentId
+  final int? delegate1;
+  final int? delegate2;
+  final int? delegate3;
+
+  SeatingChart({
+    required this.id,
+    required this.classId,
+    required this.rows,
+    required this.cols,
+    required this.seats,
+    this.delegate1,
+    this.delegate2,
+    this.delegate3,
+  });
+
+  factory SeatingChart.fromJson(Map<String, dynamic> json) {
+    final seatsRaw = json['seats'];
+    final seats = <String, int>{};
+    if (seatsRaw is Map) {
+      for (final entry in seatsRaw.entries) {
+        final key = entry.key.toString();
+        final value = entry.value;
+        if (value is int) {
+          seats[key] = value;
+        } else if (value is num) {
+          seats[key] = value.toInt();
+        }
+      }
+    }
+    return SeatingChart(
+      id: json['id'] as int,
+      classId: json['classId'] as int,
+      rows: json['rows'] as int,
+      cols: json['cols'] as int,
+      seats: seats,
+      delegate1: json['delegate1'] as int?,
+      delegate2: json['delegate2'] as int?,
+      delegate3: json['delegate3'] as int?,
+    );
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -786,7 +835,7 @@ class ApiService {
     return result;
   }
 
-  // ───────── الحضور (مع period) ─────────
+  // ───────── الحضور ─────────
   static Future<int> saveAttendance({
     required int classId,
     required DateTime date,
@@ -1072,6 +1121,57 @@ class ApiService {
             headers: _headers(json: false))
         .timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) throw Exception('فشل حذف الحصة');
+  }
+
+  // ───────── مخطط الجلوس ─────────
+  static Future<SeatingChart> getSeatingChart(int classId) async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/api/classes/$classId/seating'),
+            headers: _headers(json: false))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) return SeatingChart.fromJson(body['data']);
+    }
+    throw Exception('فشل جلب مخطط الجلوس');
+  }
+
+  static Future<SeatingChart> saveSeatingChart({
+    required int classId,
+    required int rows,
+    required int cols,
+    required Map<String, int> seats,
+    int? delegate1,
+    int? delegate2,
+    int? delegate3,
+  }) async {
+    final response = await http
+        .put(
+          Uri.parse('$_baseUrl/api/classes/$classId/seating'),
+          headers: _headers(),
+          body: jsonEncode({
+            'rows': rows,
+            'cols': cols,
+            'seats': seats,
+            'delegate1': delegate1,
+            'delegate2': delegate2,
+            'delegate3': delegate3,
+          }),
+        )
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body['success'] == true) return SeatingChart.fromJson(body['data']);
+    }
+    throw Exception('فشل حفظ المخطط');
+  }
+
+  static Future<void> deleteSeatingChart(int classId) async {
+    final response = await http
+        .delete(Uri.parse('$_baseUrl/api/classes/$classId/seating'),
+            headers: _headers(json: false))
+        .timeout(const Duration(seconds: 60));
+    if (response.statusCode != 200) throw Exception('فشل حذف المخطط');
   }
 
   // ───────── أدوات ─────────
