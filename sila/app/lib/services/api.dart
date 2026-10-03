@@ -214,7 +214,8 @@ class CurrentSchedule {
 
   CurrentSchedule({this.current, this.next});
 
-  factory CurrentSchedule.fromJson(Map<String, dynamic> json) => CurrentSchedule(
+  factory CurrentSchedule.fromJson(Map<String, dynamic> json) =>
+      CurrentSchedule(
         current: json['current'] != null
             ? ScheduleItem.fromJson(json['current'])
             : null,
@@ -223,14 +224,15 @@ class CurrentSchedule {
 }
 
 // ═══════════════════════════════════════════
-// مخطط الجلوس
+// مخطط الجلوس (طاولة = مقعدان)
 // ═══════════════════════════════════════════
 class SeatingChart {
   final int id;
   final int classId;
   final int rows;
   final int cols;
-  final Map<String, int> seats; // "r-c" → studentId
+  // "r-c" → [id1, id2] حيث null تعني مقعد فارغ
+  final Map<String, List<int?>> seats;
   final int? delegate1;
   final int? delegate2;
   final int? delegate3;
@@ -248,16 +250,21 @@ class SeatingChart {
 
   factory SeatingChart.fromJson(Map<String, dynamic> json) {
     final seatsRaw = json['seats'];
-    final seats = <String, int>{};
+    final seats = <String, List<int?>>{};
     if (seatsRaw is Map) {
       for (final entry in seatsRaw.entries) {
         final key = entry.key.toString();
         final value = entry.value;
-        if (value is int) {
-          seats[key] = value;
-        } else if (value is num) {
-          seats[key] = value.toInt();
+        final list = <int?>[null, null];
+        if (value is List) {
+          for (int i = 0; i < 2 && i < value.length; i++) {
+            final v = value[i];
+            if (v is num && v > 0) list[i] = v.toInt();
+          }
+        } else if (value is num && value > 0) {
+          list[0] = value.toInt();
         }
+        seats[key] = list;
       }
     }
     return SeatingChart(
@@ -1140,7 +1147,7 @@ class ApiService {
     required int classId,
     required int rows,
     required int cols,
-    required Map<String, int> seats,
+    required Map<String, List<int?>> seats,
     int? delegate1,
     int? delegate2,
     int? delegate3,
