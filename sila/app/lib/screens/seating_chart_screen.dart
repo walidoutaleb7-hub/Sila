@@ -21,7 +21,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
 
   int _rows = 5;
   int _cols = 4;
-  Map<String, int> _seats = {};
+  Map<String, List<int?>> _seats = {};
   int? _delegate1;
   int? _delegate2;
   int? _delegate3;
@@ -46,7 +46,10 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         _chart = chart;
         _rows = chart.rows;
         _cols = chart.cols;
-        _seats = Map<String, int>.from(chart.seats);
+        _seats = {
+          for (final e in chart.seats.entries)
+            e.key: List<int?>.from(e.value),
+        };
         _delegate1 = chart.delegate1;
         _delegate2 = chart.delegate2;
         _delegate3 = chart.delegate3;
@@ -72,7 +75,13 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         delegate2: _delegate2,
         delegate3: _delegate3,
       );
-      setState(() => _chart = saved);
+      setState(() {
+        _chart = saved;
+        _seats = {
+          for (final e in saved.seats.entries)
+            e.key: List<int?>.from(e.value),
+        };
+      });
       if (mounted) _showSnack('تم الحفظ', isError: false);
     } catch (e) {
       if (mounted) _showSnack('فشل الحفظ: $e', isError: true);
@@ -97,12 +106,21 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     ));
   }
 
-  Set<int> get _assignedIds => {
-        ..._seats.values,
-        if (_delegate1 != null) _delegate1!,
-        if (_delegate2 != null) _delegate2!,
-        if (_delegate3 != null) _delegate3!,
-      };
+  // ═══════════════════════════════════════════
+  // قوائم مساعدة
+  // ═══════════════════════════════════════════
+  Set<int> get _assignedIds {
+    final ids = <int>{};
+    for (final list in _seats.values) {
+      for (final id in list) {
+        if (id != null) ids.add(id);
+      }
+    }
+    if (_delegate1 != null) ids.add(_delegate1!);
+    if (_delegate2 != null) ids.add(_delegate2!);
+    if (_delegate3 != null) ids.add(_delegate3!);
+    return ids;
+  }
 
   List<Student> get _unassignedStudents =>
       _students.where((s) => !_assignedIds.contains(s.id)).toList();
@@ -116,93 +134,97 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     }
   }
 
-  Future<void> _selectStudentForSeat(String seatKey) async {
-    final currentId = _seats[seatKey];
+  int get _totalCapacity => _rows * _cols * 2;
 
-    if (currentId != null) {
-      final action = await showModalBottomSheet<String>(
-        context: context,
-        backgroundColor: context.colors.cardBg,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        builder: (context) => _buildSeatActions(currentId, seatKey),
-      );
+  int get _assignedCount => _assignedIds.length;
 
-      if (action == 'change') {
-        await _showStudentPicker(seatKey);
-      } else if (action == 'remove') {
-        setState(() => _seats.remove(seatKey));
-        _save();
-      }
-    } else {
-      await _showStudentPicker(seatKey);
-    }
-  }
-
-  Widget _buildSeatActions(int studentId, String seatKey) {
+  // ═══════════════════════════════════════════
+  // التبديل مع تلميذ آخر (يُستخدم في القائمة المنبثقة)
+  // ═══════════════════════════════════════════
+  Future<void> _showSlotOptions(String cellKey, int slotIndex) async {
+    final ids = _seats[cellKey] ?? [null, null];
+    final currentId = slotIndex < ids.length ? ids[slotIndex] : null;
+    if (currentId == null) return;
+    final student = _findStudent(currentId);
     final colors = context.colors;
-    final student = _findStudent(studentId);
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: colors.divider,
-                borderRadius: BorderRadius.circular(2),
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: colors.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: colors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(children: [
-                StudentAvatar(
-                  studentId: studentId,
-                  fullName: student?.fullName ?? '—',
-                  photoBase64: student?.photoUrl,
-                  size: 48,
-                  borderRadius: 12,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    student?.fullName ?? '—',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: colors.textPrimary),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(children: [
+                  StudentAvatar(
+                    studentId: currentId,
+                    fullName: student?.fullName ?? '—',
+                    photoBase64: student?.photoUrl,
+                    size: 48,
+                    borderRadius: 12,
                   ),
-                ),
-              ]),
-            ),
-            const SizedBox(height: 8),
-            Divider(height: 1, color: colors.divider),
-            ListTile(
-              leading: Icon(Icons.swap_horiz, color: Colors.blue.shade600),
-              title: const Text('تبديل مع تلميذ آخر',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'change'),
-            ),
-            ListTile(
-              leading:
-                  Icon(Icons.person_remove_outlined, color: Colors.red.shade600),
-              title: const Text('إزالة من الكرسي',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () => Navigator.pop(context, 'remove'),
-            ),
-            const SizedBox(height: 8),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      student?.fullName ?? '—',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: colors.textPrimary),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              Divider(height: 1, color: colors.divider),
+              ListTile(
+                leading: Icon(Icons.swap_horiz, color: Colors.blue.shade600),
+                title: const Text('تبديل بتلميذ آخر',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(context, 'change'),
+              ),
+              ListTile(
+                leading: Icon(Icons.person_remove_outlined,
+                    color: Colors.red.shade600),
+                title: const Text('إزالة من المقعد',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () => Navigator.pop(context, 'remove'),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
+
+    if (action == 'change') {
+      await _assignToSlot(cellKey, slotIndex);
+    } else if (action == 'remove') {
+      _removeFromSlot(cellKey, slotIndex);
+    }
   }
 
-  Future<void> _showStudentPicker(String seatKey) async {
+  // ═══════════════════════════════════════════
+  // إسناد تلميذ لمقعد معين
+  // ═══════════════════════════════════════════
+  Future<void> _assignToSlot(String cellKey, int slotIndex) async {
     final selected = await showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -213,21 +235,62 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
       builder: (context) => _buildStudentPicker(),
     );
 
-    if (selected != null) {
-      final oldKey = _seats.entries
-          .firstWhere((e) => e.value == selected,
-              orElse: () => const MapEntry('', -1))
-          .key;
-      if (oldKey.isNotEmpty) _seats.remove(oldKey);
-      if (_delegate1 == selected) _delegate1 = null;
-      if (_delegate2 == selected) _delegate2 = null;
-      if (_delegate3 == selected) _delegate3 = null;
+    if (selected == null) return;
 
-      setState(() => _seats[seatKey] = selected);
-      _save();
-    }
+    _removeStudentFromAll(selected);
+
+    setState(() {
+      final current = List<int?>.from(_seats[cellKey] ?? [null, null]);
+      while (current.length < 2) {
+        current.add(null);
+      }
+      current[slotIndex] = selected;
+      _seats[cellKey] = current;
+    });
+
+    _save();
   }
 
+  void _removeFromSlot(String cellKey, int slotIndex) {
+    setState(() {
+      final current = List<int?>.from(_seats[cellKey] ?? [null, null]);
+      while (current.length < 2) {
+        current.add(null);
+      }
+      current[slotIndex] = null;
+      if (current.every((id) => id == null)) {
+        _seats.remove(cellKey);
+      } else {
+        _seats[cellKey] = current;
+      }
+    });
+    _save();
+  }
+
+  void _removeStudentFromAll(int studentId) {
+    final keysToRemove = <String>[];
+    for (final key in _seats.keys) {
+      final list = List<int?>.from(_seats[key]!);
+      for (int i = 0; i < list.length; i++) {
+        if (list[i] == studentId) list[i] = null;
+      }
+      if (list.every((id) => id == null)) {
+        keysToRemove.add(key);
+      } else {
+        _seats[key] = list;
+      }
+    }
+    for (final k in keysToRemove) {
+      _seats.remove(k);
+    }
+    if (_delegate1 == studentId) _delegate1 = null;
+    if (_delegate2 == studentId) _delegate2 = null;
+    if (_delegate3 == studentId) _delegate3 = null;
+  }
+
+  // ═══════════════════════════════════════════
+  // منتقي التلاميذ
+  // ═══════════════════════════════════════════
   Widget _buildStudentPicker() {
     final colors = context.colors;
     final available = _unassignedStudents;
@@ -303,7 +366,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
                                     fontWeight: FontWeight.bold,
                                     color: colors.textPrimary)),
                             const SizedBox(height: 8),
-                            Text('أزل تلميذاً من كرسي آخر لتغييره',
+                            Text('أزل تلميذاً من مقعد آخر لتغييره',
                                 style: TextStyle(
                                     color: colors.textSecondary,
                                     fontSize: 13)),
@@ -345,6 +408,9 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════
+  // اختيار الأدوار
+  // ═══════════════════════════════════════════
   Future<void> _selectDelegate(int roleIndex) async {
     final currentId = roleIndex == 1
         ? _delegate1
@@ -423,15 +489,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
         builder: (context) => _buildStudentPicker(),
       );
       if (selected != null) {
-        final oldKey = _seats.entries
-            .firstWhere((e) => e.value == selected,
-                orElse: () => const MapEntry('', -1))
-            .key;
-        if (oldKey.isNotEmpty) _seats.remove(oldKey);
-        if (_delegate1 == selected) _delegate1 = null;
-        if (_delegate2 == selected) _delegate2 = null;
-        if (_delegate3 == selected) _delegate3 = null;
-
+        _removeStudentFromAll(selected);
         setState(() {
           if (roleIndex == 1) _delegate1 = selected;
           if (roleIndex == 2) _delegate2 = selected;
@@ -449,6 +507,9 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     }
   }
 
+  // ═══════════════════════════════════════════
+  // تعديل الأبعاد
+  // ═══════════════════════════════════════════
   Future<void> _showResizeDialog() async {
     int newRows = _rows;
     int newCols = _cols;
@@ -483,29 +544,36 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildSizeRow(context, 'الصفوف', newRows,
+                _buildSizeRow(context, 'الصفوف (طاولات)', newRows,
                     (v) => setDialogState(() => newRows = v)),
                 const SizedBox(height: 16),
-                _buildSizeRow(context, 'الأعمدة', newCols,
+                _buildSizeRow(context, 'الأعمدة (طاولات)', newCols,
                     (v) => setDialogState(() => newCols = v)),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: context.isDark
-                        ? const Color(0xFF3A2A0A)
-                        : Colors.orange.shade50,
+                        ? const Color(0xFF1B3A1E)
+                        : Colors.green.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(children: [
                     Icon(Icons.info_outline,
-                        size: 14, color: Colors.orange.shade700),
+                        size: 14,
+                        color: context.isDark
+                            ? const Color(0xFF81C784)
+                            : Colors.green.shade700),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'الصفوف أو الأعمدة المُزالة ستفقد التلاميذ المُعيَّنين فيها.',
+                        'السعة الكلية: ${newRows * newCols * 2} تلميذ (كل طاولة = مقعدان)',
                         style: TextStyle(
-                            fontSize: 11, color: Colors.orange.shade800),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: context.isDark
+                                ? const Color(0xFF81C784)
+                                : Colors.green.shade800),
                       ),
                     ),
                   ]),
@@ -615,7 +683,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
         ]),
         content: const Text(
-          'سيتم إزالة كل التلاميذ من الكراسي والأدوار.\n'
+          'سيتم إزالة كل التلاميذ من المقاعد والأدوار.\n'
           'البنية (الصفوف والأعمدة) ستبقى.',
           style: TextStyle(fontSize: 14, height: 1.5),
         ),
@@ -654,6 +722,9 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     }
   }
 
+  // ═══════════════════════════════════════════
+  // الواجهة
+  // ═══════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -815,7 +886,9 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         _buildBoard(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
+        _buildInfoBar(),
+        const SizedBox(height: 14),
         _buildClassGrid(),
         const SizedBox(height: 24),
         _buildDelegates(),
@@ -826,7 +899,7 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
 
   Widget _buildBoard() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0D3B14), Color(0xFF1B5E20)],
@@ -858,9 +931,63 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     );
   }
 
+  Widget _buildInfoBar() {
+    final colors = context.colors;
+    final assigned = _assignedCount;
+    final capacity = _totalCapacity;
+    final percent = capacity > 0 ? (assigned / capacity * 100).round() : 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.cardBorder),
+      ),
+      child: Row(children: [
+        Icon(Icons.table_restaurant_outlined,
+            size: 16, color: Colors.green.shade600),
+        const SizedBox(width: 8),
+        Text('$_rows × $_cols طاولة',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary)),
+        const SizedBox(width: 12),
+        Container(width: 1, height: 16, color: colors.divider),
+        const SizedBox(width: 12),
+        Icon(Icons.event_seat,
+            size: 16, color: Colors.blue.shade600),
+        const SizedBox(width: 6),
+        Text('$assigned / $capacity',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary)),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: percent == 100
+                ? Colors.green.shade50
+                : (context.isDark
+                    ? const Color(0xFF1B3A1E)
+                    : Colors.green.shade50),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text('$percent%',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700)),
+        ),
+      ]),
+    );
+  }
+
   Widget _buildClassGrid() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: context.isDark ? const Color(0xFF1A2027) : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(18),
@@ -869,13 +996,13 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
       child: Column(
         children: List.generate(_rows, (r) {
           return Padding(
-            padding: EdgeInsets.only(bottom: r < _rows - 1 ? 10 : 0),
+            padding: EdgeInsets.only(bottom: r < _rows - 1 ? 8 : 0),
             child: Row(
               children: List.generate(_cols, (c) {
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(left: c < _cols - 1 ? 6 : 0),
-                    child: _buildSeat(r, c),
+                    child: _buildTable(r, c),
                   ),
                 );
               }),
@@ -886,70 +1013,101 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
     );
   }
 
-  Widget _buildSeat(int row, int col) {
+  // ═══════════════════════════════════════════
+  // الطاولة (خلية بمقعدين)
+  // ═══════════════════════════════════════════
+  Widget _buildTable(int row, int col) {
     final key = '$row-$col';
-    final studentId = _seats[key];
-    final student = _findStudent(studentId);
+    final ids = _seats[key] ?? [null, null];
+    final id0 = ids.isNotEmpty ? ids[0] : null;
+    final id1 = ids.length > 1 ? ids[1] : null;
+    final bothEmpty = id0 == null && id1 == null;
     final colors = context.colors;
-    final isFilled = student != null;
-
-    final borderColor =
-        isFilled ? Colors.green.shade400 : colors.textTertiary.withOpacity(0.4);
 
     return AspectRatio(
-      aspectRatio: 0.85,
-      child: Material(
-        color: isFilled
-            ? (context.isDark
-                ? const Color(0xFF1B3A1E)
-                : Colors.green.shade50)
-            : colors.cardBg,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
+      aspectRatio: 0.72,
+      child: Container(
+        decoration: BoxDecoration(
+          color: bothEmpty
+              ? colors.cardBg
+              : (context.isDark
+                  ? const Color(0xFF1B3A1E)
+                  : Colors.green.shade50),
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _selectStudentForSeat(key),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: borderColor,
-                width: isFilled ? 1.5 : 1.2,
-              ),
-              boxShadow: isFilled
-                  ? [
-                      BoxShadow(
-                        color: Colors.green.withOpacity(0.15),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
-            ),
-            child:
-                isFilled ? _buildFilledSeat(student) : _buildEmptySeat(colors),
+          border: Border.all(
+            color: bothEmpty
+                ? colors.textTertiary.withOpacity(0.4)
+                : Colors.green.shade400,
+            width: bothEmpty ? 1.2 : 1.5,
           ),
+          boxShadow: bothEmpty
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: _buildSlot(key, 0, id0),
+            ),
+            Container(
+              height: 1,
+              color: colors.cardBorder,
+            ),
+            Expanded(
+              child: _buildSlot(key, 1, id1),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFilledSeat(Student student) {
+  Widget _buildSlot(String cellKey, int slotIndex, int? studentId) {
+    final colors = context.colors;
+    final student = _findStudent(studentId);
+    final isFilled = student != null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (isFilled) {
+            _showSlotOptions(cellKey, slotIndex);
+          } else {
+            _assignToSlot(cellKey, slotIndex);
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: isFilled
+              ? _buildFilledSlot(student)
+              : _buildEmptySlot(colors),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilledSlot(Student student) {
     final colors = context.colors;
     final firstName = student.fullName.trim().split(' ').first;
-    return Padding(
-      padding: const EdgeInsets.all(6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          StudentAvatar(
-            studentId: student.id,
-            fullName: student.fullName,
-            photoBase64: student.photoUrl,
-            size: 36,
-            borderRadius: 10,
-          ),
-          const SizedBox(height: 4),
-          Text(
+    return Row(
+      children: [
+        StudentAvatar(
+          studentId: student.id,
+          fullName: student.fullName,
+          photoBase64: student.photoUrl,
+          size: 28,
+          borderRadius: 8,
+        ),
+        const SizedBox(width: 5),
+        Expanded(
+          child: Text(
             firstName,
             style: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -957,34 +1115,25 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
                 color: colors.textPrimary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildEmptySeat(AppColors colors) {
+  Widget _buildEmptySlot(AppColors colors) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_circle_outline,
-            size: 24,
-            color: colors.textTertiary.withOpacity(0.5),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'فارغ',
-            style: TextStyle(
-                fontSize: 10, color: colors.textTertiary.withOpacity(0.7)),
-          ),
-        ],
+      child: Icon(
+        Icons.add_circle_outline,
+        size: 20,
+        color: colors.textTertiary.withOpacity(0.5),
       ),
     );
   }
 
+  // ═══════════════════════════════════════════
+  // الأدوار
+  // ═══════════════════════════════════════════
   Widget _buildDelegates() {
     final colors = context.colors;
     return Column(
@@ -1009,14 +1158,14 @@ class _SeatingChartScreenState extends State<SeatingChartScreen> {
                   color: colors.textPrimary)),
         ]),
         const SizedBox(height: 12),
-        _buildDelegateRow(1, 'منوب القسم', Icons.star, Colors.amber,
-            _delegate1),
+        _buildDelegateRow(
+            1, 'منوب القسم', Icons.star, Colors.amber, _delegate1),
         const SizedBox(height: 10),
         _buildDelegateRow(
             2, 'النائب الأول', Icons.star_half, Colors.blue, _delegate2),
         const SizedBox(height: 10),
-        _buildDelegateRow(3, 'النائب الثاني', Icons.star_outline, Colors.blue,
-            _delegate3),
+        _buildDelegateRow(
+            3, 'النائب الثاني', Icons.star_outline, Colors.blue, _delegate3),
       ],
     );
   }
