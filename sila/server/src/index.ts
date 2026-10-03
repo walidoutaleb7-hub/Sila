@@ -400,7 +400,6 @@ app.post(
   }),
 );
 
-// ─── دالة: حساب الغياب المتتالي ───
 function computeConsecutiveAbsences(
   records: { date: Date; period: string; status: string }[],
 ): number {
@@ -726,7 +725,7 @@ app.delete(
 );
 
 // ═══════════════════════════════════════════
-// 7. إحصائيات القسم
+// 7. إحصائيات القسم (قديمة - للتوافق)
 // ═══════════════════════════════════════════
 app.get(
   '/api/classes/:id/stats',
@@ -824,6 +823,257 @@ app.get(
         last7Days,
         topStudents,
         worstStudents,
+      },
+    });
+  }),
+);
+
+// ═══════════════════════════════════════════
+// 7.5. الإحصائيات المتقدمة (مع فلترة زمنية + insights)
+// ═══════════════════════════════════════════
+app.get(
+  '/api/classes/:id/advanced-stats',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const classId = parseInt(String(req.params.id));
+    const period = (req.query.period as string) || 'month';
+
+    if (isNaN(classId)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_CLASS_ID', message: 'رقم القسم غير صحيح' },
+      });
+    }
+
+    if (!(await ownsClass(classId, req.userId!))) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
+      });
+    }
+
+    const existingClass = await prisma.class.findUnique({
+      where: { id: classId },
+    });
+    if (!existingClass) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'CLASS_NOT_FOUND', message: 'القسم غير موجود' },
+      });
+    }
+
+    const now = new Date();
+    let periodStart = new Date();
+    let prevStart = new Date();
+    let prevEnd = new Date();
+
+    if (period === 'week') {
+      periodStart.setDate(now.getDate() - 7);
+      prevStart.setDate(now.getDate() - 14);
+      prevEnd.setDate(now.getDate() - 7);
+    } else if (period === 'month') {
+      periodStart.setDate(now.getDate() - 30);
+      prevStart.setDate(now.getDate() - 60);
+      prevEnd.setDate(now.getDate() - 30);
+    } else if (period === 'term') {
+      periodStart.setDate(now.getDate() - 90);
+      prevStart.setDate(now.getDate() - 180);
+      prevEnd.setDate(now.getDate() - 90);
+    } else {
+      periodStart = new Date(2000, 0, 1);
+      prevStart = new Date(2000, 0, 1);
+      prevEnd = new Date(2000, 0, 1);
+    }
+
+    const students = await prisma.student.findMany({
+      where: { classId },
+      orderBy: { fullName: 'asc' },
+    });
+    const allAttendance = await prisma.attendance.findMany({
+      where: { student: { classId } },
+      orderBy: { date: 'asc' },
+    });
+
+    const periodAtt = allAttendance.filter(
+      (a) => new Date(a.date) >= periodStart,
+    );
+    const prevAtt = allAttendance.filter((a) => {
+      const d = new Date(a.date);
+      return d >= prevStart && d < prevEnd;
+    });
+
+    const total = periodAtt.length;
+    const present = periodAtt.filter((a) => a.status === 'PRESENT').length;
+    const absent = periodAtt.filter((a) => a.status === 'ABSENT').length;
+    const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+
+    const prevTotal = prevAtt.length;
+    const prevPresent = prevAtt.filter((a) => a.status === 'PRESENT').length;
+    const prevRate =
+      prevTotal > 0 ? Math.round((prevPresent / prevTotal) * 100) : 0;
+    const trend = prevRate > 0 ? rate - prevRate : 0;
+
+    const dailyTrend: {
+      date: string;
+      present: number;
+      absent: number;
+      rate: number;
+    }[] = [];
+
+    const daysCount = period === 'week' ? 7 : period === 'term' ? 90 : 30;
+    for (let i = Math.min(daysCount, 30) - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayRecords = periodAtt.filter((a) => {
+        return new Date(a.date).toISOString().split('T')[0] === dateStr;
+      });
+      const dayPresent = dayRecords.filter(
+        (a) => a.status === 'PRESENT',
+      ).length;
+      const dayAbsent = dayRecords.filter(
+        (a) => a.status === 'ABSENT',
+      ).length;
+      const dayTotal = dayPresent + dayAbsent;
+      dailyTrend.push({
+        date: dateStr,
+        present: dayPresent,
+        absent: dayAbsent,
+        rate: dayTotal > 0 ? Math.round((dayPresent / dayTotal) * 100) : 0,
+      });
+    }
+
+    const weekdayPresent = [0, 0, 0, 0, 0, 0, 0];
+    const weekdayTotal = [0, 0, 0, 0, 0, 0, 0];
+    for (const a of periodAtt) {
+      const d = new Date(a.date);
+      const wd = d.getDay();
+      weekdayTotal[wd]++;
+      if (a.status === 'PRESENT') weekdayPresent[wd]++;
+    }
+    const weekdayRates = weekdayTotal.map((t, i) =>
+      t > 0 ? Math.round((weekdayPresent[i] / t) * 100) : 0,
+    );
+
+    const studentStats = students.map((s) => {
+      const sAtt = periodAtt.filter((a) => a.studentId === s.id);
+      const sPresent = sAtt.filter((a) => a.status === 'PRESENT').length;
+      const sAbsent = sAtt.filter((a) => a.status === 'ABSENT').length;
+      const sTotal = sAtt.length;
+      const sRate = sTotal > 0 ? Math.round((sPresent / sTotal) * 100) : 0;
+      return {
+        id: s.id,
+        fullName: s.fullName,
+        present: sPresent,
+        absent: sAbsent,
+        total: sTotal,
+        rate: sRate,
+      };
+    });
+
+    const activeStudents = studentStats.filter((s) => s.total >= 3);
+
+    const topStudents = [...activeStudents]
+      .sort((a, b) => b.rate - a.rate || b.present - a.present)
+      .slice(0, 5);
+
+    const worstStudents = [...activeStudents]
+      .sort((a, b) => a.rate - b.rate || b.absent - a.absent)
+      .slice(0, 5);
+
+    const atRiskStudents = activeStudents.filter((s) => s.rate < 60);
+    const atRiskCount = atRiskStudents.length;
+
+    const insights: { type: string; icon: string; message: string }[] = [];
+
+    if (total === 0) {
+      insights.push({
+        type: 'info',
+        icon: 'info',
+        message: 'لا توجد بيانات في هذه الفترة',
+      });
+    } else {
+      if (trend >= 5) {
+        insights.push({
+          type: 'positive',
+          icon: 'trending_up',
+          message: `تحسّن ملحوظ: +${trend}% مقارنة بالفترة السابقة`,
+        });
+      } else if (trend <= -5) {
+        insights.push({
+          type: 'negative',
+          icon: 'trending_down',
+          message: `انخفاض: ${trend}% مقارنة بالفترة السابقة`,
+        });
+      } else if (prevRate > 0) {
+        insights.push({
+          type: 'info',
+          icon: 'trending_flat',
+          message: `مستقر: ${rate}% (لا تغيير ملحوظ)`,
+        });
+      }
+
+      if (atRiskCount > 0) {
+        insights.push({
+          type: 'warning',
+          icon: 'warning',
+          message: `${atRiskCount} تلميذ يحتاج متابعة`,
+        });
+      }
+
+      const maxRate = Math.max(...weekdayRates);
+      if (maxRate > 0) {
+        const dayNames = [
+          'الأحد',
+          'الاثنين',
+          'الثلاثاء',
+          'الأربعاء',
+          'الخميس',
+          'الجمعة',
+          'السبت',
+        ];
+        const bestIdx = weekdayRates.indexOf(maxRate);
+        insights.push({
+          type: 'positive',
+          icon: 'calendar',
+          message: `أفضل يوم: ${dayNames[bestIdx]} (${maxRate}%)`,
+        });
+      }
+
+      if (topStudents.length > 0 && topStudents[0].rate === 100) {
+        insights.push({
+          type: 'positive',
+          icon: 'star',
+          message: `${topStudents[0].fullName}: حضور مثالي 100% 🎯`,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        className: existingClass.name,
+        classLevel: existingClass.level,
+        period,
+        totalStudents: students.length,
+        overview: {
+          total,
+          present,
+          absent,
+          rate,
+          trend,
+          prevRate,
+        },
+        dailyTrend,
+        weekdayRates,
+        topStudents,
+        worstStudents,
+        atRiskCount,
+        atRiskStudents: atRiskStudents.slice(0, 10).map((s) => ({
+          id: s.id,
+          fullName: s.fullName,
+          rate: s.rate,
+        })),
+        insights,
       },
     });
   }),
@@ -1451,10 +1701,8 @@ app.delete(
 );
 
 // ═══════════════════════════════════════════
-// 12. مخطط الجلوس (طاولة = مقعدان)
+// 12. مخطط الجلوس
 // ═══════════════════════════════════════════
-
-// ─── جلب المخطط ───
 app.get(
   '/api/classes/:classId/seating',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -1492,7 +1740,6 @@ app.get(
   }),
 );
 
-// ─── حفظ المخطط ───
 const saveSeatingSchema = z.object({
   rows: z.number().int().min(1).max(20),
   cols: z.number().int().min(1).max(20),
@@ -1572,7 +1819,6 @@ app.put(
   }),
 );
 
-// ─── حذف المخطط ───
 app.delete(
   '/api/classes/:classId/seating',
   asyncHandler(async (req: AuthRequest, res: Response) => {
