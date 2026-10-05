@@ -3,6 +3,7 @@ import '../services/api.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import '../widgets/offline_banner.dart'; // ⚡ جديد
 import 'attendance.dart';
 import 'schedule_screen.dart';
 import 'settings_screen.dart';
@@ -311,6 +312,11 @@ class _HomeScreenState extends State<HomeScreen> {
               titlePadding: EdgeInsets.zero,
               background: _buildHomeHeader(),
             ),
+          ),
+
+          // ⚡ الـ Banner: يظهر أوتوماتيكياً كي تطيح الأنترنت
+          const SliverToBoxAdapter(
+            child: OfflineBanner(),
           ),
 
           // ═══════ الحصة الحالية ═══════
