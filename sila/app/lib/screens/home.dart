@@ -3,7 +3,7 @@ import '../services/api.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
-import '../widgets/offline_banner.dart'; // ⚡ جديد
+import '../shared/widgets/offline_banner.dart'; // ⚡ تصحيح المسار
 import 'attendance.dart';
 import 'schedule_screen.dart';
 import 'settings_screen.dart';
