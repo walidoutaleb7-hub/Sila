@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'auth_service.dart';
+import 'cache_service.dart';
 
 // ═══════════════════════════════════════════
 // نماذج أساسية
@@ -759,10 +760,11 @@ class StudentNotes {
 }
 
 // ═══════════════════════════════════════════
-// الخدمة
+// الخدمة (مع Cache)
 // ═══════════════════════════════════════════
 class ApiService {
   static const String _baseUrl = AppConfig.apiBaseUrl;
+  static const Duration _timeout = Duration(seconds: 12);
 
   static Map<String, String> _headers({bool json = true}) {
     final headers = <String, String>{};
@@ -774,58 +776,94 @@ class ApiService {
     return headers;
   }
 
+  /// GET مع cache fallback
+  static Future<dynamic> _getCached({
+    required String url,
+    required String cacheKey,
+  }) async {
+    try {
+      final response = await http
+          .get(Uri.parse(url), headers: _headers(json: false))
+          .timeout(_timeout);
+      if (response.statusCode == 200) {
+        final body = jsonDecode(utf8.decode(response.bodyBytes));
+        if (body['success'] == true) {
+          await CacheService.save(cacheKey, body['data']);
+          return body['data'];
+        }
+        throw Exception(body['error']?['message'] ?? 'فشل');
+      }
+      throw Exception('فشل (${response.statusCode})');
+    } catch (e) {
+      final cached = CacheService.load(cacheKey);
+      if (cached != null) return cached;
+      rethrow;
+    }
+  }
+
+  /// POST/PUT/DELETE (لا cache fallback — عملية كتابة)
+  static Future<dynamic> _write({
+    required String method,
+    required String url,
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = Uri.parse(url);
+    late http.Response response;
+    final headers = _headers();
+    final encoded = body != null ? jsonEncode(body) : null;
+
+    switch (method) {
+      case 'POST':
+        response =
+            await http.post(uri, headers: headers, body: encoded).timeout(_timeout);
+        break;
+      case 'PUT':
+        response =
+            await http.put(uri, headers: headers, body: encoded).timeout(_timeout);
+        break;
+      case 'DELETE':
+        response = await http.delete(uri, headers: headers).timeout(_timeout);
+        break;
+      default:
+        throw Exception('method غير مدعوم');
+    }
+
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (decoded['success'] == true) return decoded['data'];
+    }
+    throw Exception(decoded['error']?['message'] ?? 'فشل العملية');
+  }
+
   // ───────── الأقسام ─────────
   static Future<List<SchoolClass>> getClasses() async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes'), headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return (body['data'] as List)
-            .map((e) => SchoolClass.fromJson(e))
-            .toList();
-      }
-    }
-    throw Exception('فشل جلب الأقسام');
+    final data = await _getCached(
+      url: '$_baseUrl/api/classes',
+      cacheKey: 'classes',
+    );
+    return (data as List).map((e) => SchoolClass.fromJson(e)).toList();
   }
 
   static Future<SchoolClass> createClass({
     required String name,
     required String level,
   }) async {
-    final response = await http
-        .post(
-          Uri.parse('$_baseUrl/api/classes'),
-          headers: _headers(),
-          body: jsonEncode({'name': name, 'level': level}),
-        )
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 201) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return SchoolClass.fromJson({
-          ...body['data'],
-          '_count': {'students': 0},
-        });
-      }
-    }
-    throw Exception('فشل إنشاء القسم');
+    final data = await _write(
+      method: 'POST',
+      url: '$_baseUrl/api/classes',
+      body: {'name': name, 'level': level},
+    );
+    await CacheService.save('classes', null); // invalidate
+    return SchoolClass.fromJson({...data, '_count': {'students': 0}});
   }
 
   // ───────── التلاميذ ─────────
   static Future<List<Student>> getStudents(int classId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/students'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return (body['data'] as List).map((e) => Student.fromJson(e)).toList();
-      }
-    }
-    throw Exception('فشل جلب التلاميذ');
+    final data = await _getCached(
+      url: '$_baseUrl/api/classes/$classId/students',
+      cacheKey: 'students_$classId',
+    );
+    return (data as List).map((e) => Student.fromJson(e)).toList();
   }
 
   static Future<Student> createStudent({
@@ -834,22 +872,17 @@ class ApiService {
     String? guardianName,
     String? guardianPhone,
   }) async {
-    final response = await http
-        .post(
-          Uri.parse('$_baseUrl/api/classes/$classId/students'),
-          headers: _headers(),
-          body: jsonEncode({
-            'fullName': fullName,
-            'guardianName': guardianName,
-            'guardianPhone': guardianPhone,
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 201) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return Student.fromJson(body['data']);
-    }
-    throw Exception('فشل إضافة التلميذ');
+    final data = await _write(
+      method: 'POST',
+      url: '$_baseUrl/api/classes/$classId/students',
+      body: {
+        'fullName': fullName,
+        'guardianName': guardianName,
+        'guardianPhone': guardianPhone,
+      },
+    );
+    await CacheService.save('students_$classId', null);
+    return Student.fromJson(data);
   }
 
   static Future<Student> updateStudent({
@@ -858,101 +891,70 @@ class ApiService {
     String? guardianName,
     String? guardianPhone,
   }) async {
-    final response = await http
-        .put(
-          Uri.parse('$_baseUrl/api/students/$studentId'),
-          headers: _headers(),
-          body: jsonEncode({
-            'fullName': fullName,
-            'guardianName': guardianName,
-            'guardianPhone': guardianPhone,
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return Student.fromJson(body['data']);
-    }
-    throw Exception('فشل تعديل التلميذ');
+    final data = await _write(
+      method: 'PUT',
+      url: '$_baseUrl/api/students/$studentId',
+      body: {
+        'fullName': fullName,
+        'guardianName': guardianName,
+        'guardianPhone': guardianPhone,
+      },
+    );
+    return Student.fromJson(data);
   }
 
   static Future<void> deleteStudent(int studentId) async {
-    final response = await http
-        .delete(Uri.parse('$_baseUrl/api/students/$studentId'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode != 200) throw Exception('فشل حذف التلميذ');
+    await _write(
+      method: 'DELETE',
+      url: '$_baseUrl/api/students/$studentId',
+    );
   }
 
   static Future<Student> updateStudentPhoto({
     required int studentId,
     required String photoBase64,
   }) async {
-    final response = await http
-        .put(
-          Uri.parse('$_baseUrl/api/students/$studentId/photo'),
-          headers: _headers(),
-          body: jsonEncode({'photoUrl': photoBase64}),
-        )
-        .timeout(const Duration(seconds: 120));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return Student.fromJson(body['data']);
-    }
-    throw Exception('فشل تحديث الصورة');
+    final data = await _write(
+      method: 'PUT',
+      url: '$_baseUrl/api/students/$studentId/photo',
+      body: {'photoUrl': photoBase64},
+    );
+    return Student.fromJson(data);
   }
 
   static Future<Student> deleteStudentPhoto(int studentId) async {
-    final response = await http
-        .delete(Uri.parse('$_baseUrl/api/students/$studentId/photo'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return Student.fromJson(body['data']);
-    }
-    throw Exception('فشل حذف الصورة');
+    final data = await _write(
+      method: 'DELETE',
+      url: '$_baseUrl/api/students/$studentId/photo',
+    );
+    return Student.fromJson(data);
   }
 
   static Future<StudentHistory> getStudentHistory(int studentId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/students/$studentId/attendance'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return StudentHistory.fromJson(body['data']);
-    }
-    throw Exception('فشل جلب سجل التلميذ');
+    final data = await _getCached(
+      url: '$_baseUrl/api/students/$studentId/attendance',
+      cacheKey: 'student_history_$studentId',
+    );
+    return StudentHistory.fromJson(data);
   }
 
   static Future<ClassStats> getClassStats(int classId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/stats'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return ClassStats.fromJson(body['data']);
-    }
-    throw Exception('فشل جلب الإحصائيات');
+    final data = await _getCached(
+      url: '$_baseUrl/api/classes/$classId/stats',
+      cacheKey: 'class_stats_$classId',
+    );
+    return ClassStats.fromJson(data);
   }
 
   static Future<AdvancedStats> getAdvancedStats({
     required int classId,
     required String period,
   }) async {
-    final uri = Uri.parse(
-      '$_baseUrl/api/classes/$classId/advanced-stats?period=$period',
+    final data = await _getCached(
+      url: '$_baseUrl/api/classes/$classId/advanced-stats?period=$period',
+      cacheKey: 'advanced_stats_${classId}_$period',
     );
-    final response = await http
-        .get(uri, headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return AdvancedStats.fromJson(body['data']);
-    }
-    throw Exception('فشل جلب الإحصائيات المتقدمة');
+    return AdvancedStats.fromJson(data);
   }
 
   static Future<List<StudentFullReport>> getFullClassReport(int classId) async {
@@ -1002,23 +1004,17 @@ class ApiService {
     final recordsList = records.entries
         .map((e) => {'studentId': e.key, 'status': e.value})
         .toList();
-    final response = await http
-        .post(
-          Uri.parse('$_baseUrl/api/attendance'),
-          headers: _headers(),
-          body: jsonEncode({
-            'classId': classId,
-            'date': dateStr,
-            'period': period,
-            'records': recordsList,
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return body['data']['saved'] as int;
-    }
-    throw Exception('فشل حفظ الحضور');
+    final data = await _write(
+      method: 'POST',
+      url: '$_baseUrl/api/attendance',
+      body: {
+        'classId': classId,
+        'date': dateStr,
+        'period': period,
+        'records': recordsList,
+      },
+    );
+    return data['saved'] as int;
   }
 
   static Future<List<AttendanceEntry>> getAttendance({
@@ -1027,21 +1023,14 @@ class ApiService {
     required String period,
   }) async {
     final dateStr = _formatDate(date);
-    final response = await http
-        .get(
-            Uri.parse(
-                '$_baseUrl/api/attendance?classId=$classId&date=$dateStr&period=$period'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return (body['data']['students'] as List)
-            .map((e) => AttendanceEntry.fromJson(e))
-            .toList();
-      }
-    }
-    throw Exception('فشل جلب سجل الحضور');
+    final data = await _getCached(
+      url:
+          '$_baseUrl/api/attendance?classId=$classId&date=$dateStr&period=$period',
+      cacheKey: 'attendance_${classId}_${dateStr}_$period',
+    );
+    return (data['students'] as List)
+        .map((e) => AttendanceEntry.fromJson(e))
+        .toList();
   }
 
   // ───────── الدرجات ─────────
@@ -1057,54 +1046,38 @@ class ApiService {
     final dateStr = _formatDate(date);
     final recordsList =
         records.entries.map((e) => {'studentId': e.key, 'score': e.value}).toList();
-    final response = await http
-        .post(
-          Uri.parse('$_baseUrl/api/grades'),
-          headers: _headers(),
-          body: jsonEncode({
-            'classId': classId,
-            'assessment': assessment,
-            'maxScore': maxScore,
-            'coeff': coeff,
-            'date': dateStr,
-            'note': note,
-            'records': recordsList,
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return body['data']['saved'] as int;
-    }
-    throw Exception('فشل حفظ الدرجات');
+    final data = await _write(
+      method: 'POST',
+      url: '$_baseUrl/api/grades',
+      body: {
+        'classId': classId,
+        'assessment': assessment,
+        'maxScore': maxScore,
+        'coeff': coeff,
+        'date': dateStr,
+        'note': note,
+        'records': recordsList,
+      },
+    );
+    return data['saved'] as int;
   }
 
   static Future<List<GradeSession>> getClassGrades(int classId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/grades'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return (body['data']['sessions'] as List)
-            .map((e) => GradeSession.fromJson(e))
-            .toList();
-      }
-    }
-    throw Exception('فشل جلب الدرجات');
+    final data = await _getCached(
+      url: '$_baseUrl/api/classes/$classId/grades',
+      cacheKey: 'class_grades_$classId',
+    );
+    return (data['sessions'] as List)
+        .map((e) => GradeSession.fromJson(e))
+        .toList();
   }
 
   static Future<StudentGrades> getStudentGrades(int studentId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/students/$studentId/grades'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return StudentGrades.fromJson(body['data']);
-    }
-    throw Exception('فشل جلب درجات التلميذ');
+    final data = await _getCached(
+      url: '$_baseUrl/api/students/$studentId/grades',
+      cacheKey: 'student_grades_$studentId',
+    );
+    return StudentGrades.fromJson(data);
   }
 
   static Future<SessionGrades> getSessionGrades({
@@ -1113,20 +1086,12 @@ class ApiService {
     required DateTime date,
   }) async {
     final dateStr = _formatDate(date);
-    final uri = Uri.parse(
-      '$_baseUrl/api/grades/session'
-      '?classId=$classId'
-      '&assessment=${Uri.encodeComponent(assessment)}'
-      '&date=$dateStr',
+    final data = await _getCached(
+      url:
+          '$_baseUrl/api/grades/session?classId=$classId&assessment=${Uri.encodeComponent(assessment)}&date=$dateStr',
+      cacheKey: 'session_${classId}_${assessment}_$dateStr',
     );
-    final response = await http
-        .get(uri, headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return SessionGrades.fromJson(body['data']);
-    }
-    throw Exception('فشل جلب درجات الجلسة');
+    return SessionGrades.fromJson(data);
   }
 
   // ───────── الملاحظات ─────────
@@ -1138,108 +1103,67 @@ class ApiService {
     required String content,
     required DateTime date,
   }) async {
-    final response = await http
-        .post(
-          Uri.parse('$_baseUrl/api/notes'),
-          headers: _headers(),
-          body: jsonEncode({
-            'classId': classId,
-            'studentId': studentId,
-            'type': type,
-            'title': title,
-            'content': content,
-            'date': _formatDate(date),
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 201) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return NoteItem.fromJson(body['data']);
-    }
-    throw Exception('فشل إنشاء الملاحظة');
+    final data = await _write(
+      method: 'POST',
+      url: '$_baseUrl/api/notes',
+      body: {
+        'classId': classId,
+        'studentId': studentId,
+        'type': type,
+        'title': title,
+        'content': content,
+        'date': _formatDate(date),
+      },
+    );
+    return NoteItem.fromJson(data);
   }
 
   static Future<List<NoteItem>> getClassNotes(int classId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/notes'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return (body['data']['notes'] as List)
-            .map((e) => NoteItem.fromJson(e))
-            .toList();
-      }
-    }
-    throw Exception('فشل جلب الملاحظات');
+    final data = await _getCached(
+      url: '$_baseUrl/api/classes/$classId/notes',
+      cacheKey: 'class_notes_$classId',
+    );
+    return (data['notes'] as List).map((e) => NoteItem.fromJson(e)).toList();
   }
 
   static Future<StudentNotes> getStudentNotes(int studentId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/students/$studentId/notes'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return StudentNotes.fromJson(body['data']);
-    }
-    throw Exception('فشل جلب ملاحظات التلميذ');
+    final data = await _getCached(
+      url: '$_baseUrl/api/students/$studentId/notes',
+      cacheKey: 'student_notes_$studentId',
+    );
+    return StudentNotes.fromJson(data);
   }
 
   static Future<void> deleteNote(int noteId) async {
-    final response = await http
-        .delete(Uri.parse('$_baseUrl/api/notes/$noteId'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode != 200) throw Exception('فشل حذف الملاحظة');
+    await _write(
+      method: 'DELETE',
+      url: '$_baseUrl/api/notes/$noteId',
+    );
   }
 
   // ───────── الجدول ─────────
   static Future<List<ScheduleItem>> getSchedule() async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/schedule'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return (body['data'] as List)
-            .map((e) => ScheduleItem.fromJson(e))
-            .toList();
-      }
-    }
-    throw Exception('فشل جلب الجدول');
+    final data = await _getCached(
+      url: '$_baseUrl/api/schedule',
+      cacheKey: 'schedule',
+    );
+    return (data as List).map((e) => ScheduleItem.fromJson(e)).toList();
   }
 
   static Future<List<ScheduleItem>> getScheduleDay(int dayOfWeek) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/schedule/day/$dayOfWeek'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return (body['data'] as List)
-            .map((e) => ScheduleItem.fromJson(e))
-            .toList();
-      }
-    }
-    throw Exception('فشل جلب جدول اليوم');
+    final data = await _getCached(
+      url: '$_baseUrl/api/schedule/day/$dayOfWeek',
+      cacheKey: 'schedule_day_$dayOfWeek',
+    );
+    return (data as List).map((e) => ScheduleItem.fromJson(e)).toList();
   }
 
   static Future<CurrentSchedule> getCurrentSchedule() async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/schedule/current'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 30));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) {
-        return CurrentSchedule.fromJson(body['data']);
-      }
-    }
-    throw Exception('فشل جلب الحصة الحالية');
+    final data = await _getCached(
+      url: '$_baseUrl/api/schedule/current',
+      cacheKey: 'schedule_current',
+    );
+    return CurrentSchedule.fromJson(data);
   }
 
   static Future<ScheduleItem> createSchedule({
@@ -1250,46 +1174,37 @@ class ApiService {
     required String subject,
     String? room,
   }) async {
-    final response = await http
-        .post(
-          Uri.parse('$_baseUrl/api/schedule'),
-          headers: _headers(),
-          body: jsonEncode({
-            'classId': classId,
-            'dayOfWeek': dayOfWeek,
-            'startTime': startTime,
-            'endTime': endTime,
-            'subject': subject,
-            'room': room,
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    final body = jsonDecode(utf8.decode(response.bodyBytes));
-    if (response.statusCode == 201 && body['success'] == true) {
-      return ScheduleItem.fromJson(body['data']);
-    }
-    throw Exception(body['error']?['message'] ?? 'فشل إضافة الحصة');
+    final data = await _write(
+      method: 'POST',
+      url: '$_baseUrl/api/schedule',
+      body: {
+        'classId': classId,
+        'dayOfWeek': dayOfWeek,
+        'startTime': startTime,
+        'endTime': endTime,
+        'subject': subject,
+        'room': room,
+      },
+    );
+    await CacheService.save('schedule', null);
+    return ScheduleItem.fromJson(data);
   }
 
   static Future<void> deleteSchedule(int scheduleId) async {
-    final response = await http
-        .delete(Uri.parse('$_baseUrl/api/schedule/$scheduleId'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode != 200) throw Exception('فشل حذف الحصة');
+    await _write(
+      method: 'DELETE',
+      url: '$_baseUrl/api/schedule/$scheduleId',
+    );
+    await CacheService.save('schedule', null);
   }
 
   // ───────── مخطط الجلوس ─────────
   static Future<SeatingChart> getSeatingChart(int classId) async {
-    final response = await http
-        .get(Uri.parse('$_baseUrl/api/classes/$classId/seating'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return SeatingChart.fromJson(body['data']);
-    }
-    throw Exception('فشل جلب مخطط الجلوس');
+    final data = await _getCached(
+      url: '$_baseUrl/api/classes/$classId/seating',
+      cacheKey: 'seating_$classId',
+    );
+    return SeatingChart.fromJson(data);
   }
 
   static Future<SeatingChart> saveSeatingChart({
@@ -1301,33 +1216,26 @@ class ApiService {
     int? delegate2,
     int? delegate3,
   }) async {
-    final response = await http
-        .put(
-          Uri.parse('$_baseUrl/api/classes/$classId/seating'),
-          headers: _headers(),
-          body: jsonEncode({
-            'rows': rows,
-            'cols': cols,
-            'seats': seats,
-            'delegate1': delegate1,
-            'delegate2': delegate2,
-            'delegate3': delegate3,
-          }),
-        )
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body['success'] == true) return SeatingChart.fromJson(body['data']);
-    }
-    throw Exception('فشل حفظ المخطط');
+    final data = await _write(
+      method: 'PUT',
+      url: '$_baseUrl/api/classes/$classId/seating',
+      body: {
+        'rows': rows,
+        'cols': cols,
+        'seats': seats,
+        'delegate1': delegate1,
+        'delegate2': delegate2,
+        'delegate3': delegate3,
+      },
+    );
+    return SeatingChart.fromJson(data);
   }
 
   static Future<void> deleteSeatingChart(int classId) async {
-    final response = await http
-        .delete(Uri.parse('$_baseUrl/api/classes/$classId/seating'),
-            headers: _headers(json: false))
-        .timeout(const Duration(seconds: 60));
-    if (response.statusCode != 200) throw Exception('فشل حذف المخطط');
+    await _write(
+      method: 'DELETE',
+      url: '$_baseUrl/api/classes/$classId/seating',
+    );
   }
 
   // ───────── أدوات ─────────
